@@ -1,5 +1,10 @@
-<script lang="ts">
+<script>
+  
 </script>
+
+<svelte:head>
+  <title>Login - BESQ Portal</title>
+</svelte:head>
 
 <body class="bg-gray-100 h-screen flex items-center justify-center p-4">
   <div
@@ -15,7 +20,7 @@
       <h1
         class="font-bold text-2xl text-center text-gray-800 font-[Poppins] tracking-tight"
       >
-        Besq User Login
+        Login Page
       </h1>
       <div
         class="text-[#0065F8] text-7xl text-center flex items-center justify-center mt-6 drop-shadow-md"
@@ -53,13 +58,11 @@
         </div>
       </div>
     </div>
-
-    <button
+    <a href="/karyawan"
       class="bg-[#0065F8] shadow-lg shadow-blue-300/50 transition-all duration-300 hover:bg-[#004bbd] hover:shadow-blue-400/50 hover:-translate-y-1 text-white font-bold py-3.5 px-4 rounded-xl w-full mt-8 cursor-pointer active:scale-95 flex justify-center items-center gap-2"
     >
-      <span>Login</span>
-    </button>
-
+      <span>Submit</span>
+  </a>
     <div class="mt-8 pt-6 border-t border-gray-100">
       <p class="text-center text-gray-400 text-[11px] leading-relaxed italic">
         Ada masalah akun? Sampaikan kendala kepada <br />
@@ -70,3 +73,9 @@
     </div>
   </div>
 </body>
+<style global>
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+</style>
