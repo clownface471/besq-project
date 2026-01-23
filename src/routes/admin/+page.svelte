@@ -105,24 +105,20 @@
 
   function handleLogout() {
     Swal.fire({
-        title: 'Logout',
-        text: 'Apakah Anda yakin ingin logout?',
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#d33',
-        confirmButtonText: 'Ya, Logout',
-        cancelButtonText: 'Batal'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                Swal.fire(
-                    'Logged Out!',
-                    'Anda telah berhasil logout.',
-                    'success'
-                );
-                window.location.href = '../';
-            }
-    })
+      title: "Logout",
+      text: "Apakah Anda yakin ingin logout?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Ya, Logout",
+      cancelButtonText: "Batal",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        Swal.fire("Logged Out!", "Anda telah berhasil logout.", "success");
+        window.location.href = "../";
+      }
+    });
   }
 
   /**
@@ -246,6 +242,25 @@
               d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
             /></svg
           >
+        </button>
+        <button
+          on:click={handleLogout}
+          class="fixed bottom-4 right-4 z-50 flex md:hidden items-center gap-2 px-4 py-3 rounded-full bg-rose-600 text-white shadow-lg active:scale-95 transition"
+        >
+          <svg
+            class="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+            />
+          </svg>
+          <span class="text-sm font-semibold">Logout</span>
         </button>
       </div>
     </div>

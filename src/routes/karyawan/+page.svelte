@@ -1,4 +1,6 @@
 <script>
+  import Swal from "sweetalert2";
+
   // Data & Logic Script (Tidak berubah dari versi sebelumnya)
   const employee = {
     name: "Alby Nizam P.",
@@ -31,9 +33,18 @@
   let scanMessage = '';
 
   function handleLogout() {
-    if(confirm('Apakah Anda yakin ingin keluar?')) {
-        window.location.href = '/';
-    }
+    Swal.fire({
+      title: 'logout',
+      text: 'Apakah Anda yakin ingin logout?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Ya, Logout',
+      cancelButtonText: 'Batal'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        window.location.href = '../';
+      }
+    })
   }
 
   /**

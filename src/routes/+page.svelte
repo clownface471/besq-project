@@ -54,7 +54,7 @@
       </div>
     </div>
 
-    <a href="/admin"
+    <a href="/karyawan"
       class="bg-[#0065F8] shadow-lg shadow-blue-300/50 transition-all duration-300 hover:bg-[#004bbd] hover:shadow-blue-400/50 hover:-translate-y-1 text-white font-bold py-3.5 px-4 rounded-xl w-full mt-8 cursor-pointer active:scale-95 flex justify-center items-center gap-2"
     >
       <span>Submit</span>
