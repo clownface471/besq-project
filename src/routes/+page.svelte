@@ -1,7 +1,7 @@
 <script lang="ts">
 </script>
 
-<body class="bg-gray-100 h-screen flex items-center justify-center p-4">
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
   <div
     class="border w-full max-w-sm overflow-hidden shadow-2xl bg-white rounded-3xl p-8 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(0,0,0,0.2)]"
   >
