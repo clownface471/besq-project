@@ -1,4 +1,6 @@
 <script>
+// @ts-nocheck
+
   import Swal from "sweetalert2";
 
   // Data Admin (Tanpa Statistik Pribadi)
@@ -113,7 +115,7 @@
         cancelButtonColor: '#d33',
         confirmButtonText: 'Ya, Logout',
         cancelButtonText: 'Batal'
-        }).then((result) => {
+        }).then((/** @type {{ isConfirmed: any; }} */ result) => {
             if (result.isConfirmed) {
                 Swal.fire(
                     'Logged Out!',

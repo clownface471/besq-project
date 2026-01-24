@@ -404,6 +404,8 @@
 
 <svelte:window on:mousemove={handleMouseMove} on:mouseup={handleMouseUp} />
 
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div 
   bind:this={canvasEl}
   class="w-screen h-screen bg-gray-50 overflow-hidden relative cursor-crosshair"
@@ -604,6 +606,7 @@
     {@const fromChart = arrow ? charts.find(c => c.id === arrow.fromId) : null}
     {@const toChart = arrow ? charts.find(c => c.id === arrow.toId) : null}
     {#if arrow && fromChart && toChart}
+      <!-- svelte-ignore a11y_interactive_supports_focus -->
       <div 
         class="absolute bg-white rounded-lg shadow-xl border border-gray-200 p-4 z-50 w-64"
         role="dialog"

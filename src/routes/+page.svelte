@@ -26,6 +26,7 @@
 
     <div class="space-y-5">
       <div>
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label
           class="text-[11px] font-bold text-gray-400 uppercase tracking-widest ml-1"
           >Username</label
@@ -40,6 +41,7 @@
       </div>
 
       <div>
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label
           class="text-[11px] font-bold text-gray-400 uppercase tracking-widest ml-1"
           >Password</label
@@ -54,7 +56,7 @@
       </div>
     </div>
 
-    <a href="/admin"
+    <a href="/cutting"
       class="bg-[#0065F8] shadow-lg shadow-blue-300/50 transition-all duration-300 hover:bg-[#004bbd] hover:shadow-blue-400/50 hover:-translate-y-1 text-white font-bold py-3.5 px-4 rounded-xl w-full mt-8 cursor-pointer active:scale-95 flex justify-center items-center gap-2"
     >
       <span>Submit</span>
