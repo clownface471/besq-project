@@ -4,6 +4,7 @@ import (
 	"besq-backend/models"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -29,6 +30,9 @@ func (uc *UserController) CreateUser(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	// Normalize NIK to lowercase for case-insensitive user handling
+	user.NIK = strings.ToLower(user.NIK)
 
 	// Validate role
 	if !models.IsValidRole(user.Role) {
@@ -173,6 +177,9 @@ func (uc *UserController) UpdateUser(c *gin.Context) {
 		})
 		return
 	}
+
+	// Normalize NIK to lowercase for case-insensitive user handling
+	user.NIK = strings.ToLower(user.NIK)
 
 	// Update user fields if provided
 	if updateData.Name != "" {

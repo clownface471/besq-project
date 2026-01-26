@@ -4,6 +4,7 @@ import (
 	"besq-backend/models"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -43,6 +44,9 @@ func (ac *AuthController) Login(c *gin.Context) {
 		})
 		return
 	}
+
+	// Normalize NIK to lowercase for case-insensitive login
+	loginReq.NIK = strings.ToLower(loginReq.NIK)
 
 	// Find user by NIK using GORM
 	var user models.User
