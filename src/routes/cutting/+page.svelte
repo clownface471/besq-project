@@ -1,5 +1,12 @@
 <script lang="ts">
-  let pressRequests = [
+  import { onMount } from "svelte";
+  import { get } from "svelte/store";
+  import { auth } from "$lib/stores/auth";
+
+  const API_URL = "http://localhost:8080";
+
+  // ===== Svelte 5 $state for reactive data =====
+  let pressRequests = $state<any[]>([
     {
       id: 1,
       lotNo: "LOT-2024-001",
@@ -14,7 +21,18 @@
       status: "Normal",
       note: "Material B2",
     },
-  ];
+  ]);
+
+  let isLoading = $state(false);
+  let errorMessage = $state("");
+  let successMessage = $state("");
+
+  // Form state for cutting data submission
+  let formData = $state({
+    partName: "",
+    quantity: "",
+    reject: "",
+  });
 
   const employee = {
     name: "Tono Widiyanto",
@@ -26,7 +44,7 @@
       "https://i.pinimg.com/550x/26/38/08/2638086da29fccffa32c5666ea77ce09.jpg",
   };
 
-  let dailyCompounds = [
+  let dailyCompounds = $state([
     { day: "Senin", short: "Sen", target: 4, actual: 4, efficiency: 100 },
     { day: "Selasa", short: "Sel", target: 4, actual: 3.5, efficiency: 88 },
     { day: "Rabu", short: "Rab", target: 4, actual: 5, efficiency: 125 },
@@ -34,17 +52,17 @@
     { day: "Jumat", short: "Jum", target: 4, actual: 4, efficiency: 100 },
     { day: "Sabtu", short: "Sab", target: 3, actual: 2, efficiency: 67 },
     { day: "Minggu", short: "Min", target: 0, actual: 0, efficiency: 0 },
-  ];
+  ]);
 
-  let monthlyData = {
+  let monthlyData = $state({
     completed: 18,
     target: 20,
     efficiency: 90,
     todayCompleted: 3,
     todayTarget: 4,
-  };
+  });
 
-  let recentScans = [
+  let recentScans = $state<any[]>([
     {
       id: 1,
       lot: "KPCP-2309-A01",
@@ -69,15 +87,111 @@
       status: "Selesai",
       pic: "Tono W.",
     },
-  ];
+  ]);
 
   // Logic untuk Bar Chart Scale
-  // Mencari nilai tertinggi antara target atau actual untuk menentukan tinggi max chart (biar tidak tembus)
   const maxChartValue = Math.max(
     ...dailyCompounds.map((d) => d.actual),
     ...dailyCompounds.map((d) => d.target),
     6
   );
+
+  // ===== API Functions =====
+
+  // Load today's cutting data from API
+  async function loadData() {
+    isLoading = true;
+    errorMessage = "";
+
+    try {
+      const authToken = get(auth).token;
+      if (!authToken) {
+        errorMessage = "No authentication token found";
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/cutting/today`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to load cutting data");
+      }
+
+      const data = await response.json();
+      recentScans = data.scans || recentScans;
+      monthlyData = data.stats || monthlyData;
+    } catch (error) {
+      errorMessage =
+        error instanceof Error ? error.message : "An error occurred";
+      console.error("Error loading data:", error);
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  // Handle form submission for new cutting entry
+  async function handleSubmit(e?: Event) {
+    if (e) {
+      e.preventDefault();
+    }
+
+    errorMessage = "";
+    successMessage = "";
+
+    // Validation
+    if (!formData.partName.trim() || !formData.quantity.trim()) {
+      errorMessage = "Part Name and Quantity are required";
+      return;
+    }
+
+    try {
+      const authToken = get(auth).token;
+      if (!authToken) {
+        errorMessage = "No authentication token found";
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/cutting`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          partName: formData.partName.trim(),
+          quantity: parseFloat(formData.quantity),
+          reject: formData.reject ? parseFloat(formData.reject) : 0,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to submit cutting data");
+      }
+
+      successMessage = "Data cutting berhasil disimpan!";
+
+      // Clear form
+      formData.partName = "";
+      formData.quantity = "";
+      formData.reject = "";
+
+      // Reload data
+      await loadData();
+
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        successMessage = "";
+      }, 3000);
+    } catch (error) {
+      errorMessage =
+        error instanceof Error ? error.message : "An error occurred";
+      console.error("Error submitting cutting data:", error);
+    }
+  }
 
   function handleLogout() {
     if (confirm("Apakah Anda yakin ingin keluar?")) {
@@ -110,235 +224,10 @@
     window.location.href = "/barcode";
   }
 
-  import { auth } from "$lib/stores/auth";
-  import { onMount } from "svelte";
-  import { goto } from "$app/navigation";
-  import { browser } from "$app/environment";
-  import { get } from "svelte/store";
-
-  interface User {
-    id: number;
-    nik: string;
-    name: string;
-    role: string;
-    created_at: string;
-    updated_at: string;
-  }
-
-  const API_URL = "http://localhost:8080";
-
-  let users = $state<User[]>([]);
-  let isLoading = $state(false);
-  let errorMessage = $state("");
-  let showModal = $state(false);
-  let isEditing = $state(false);
-  let editingUser = $state<User | null>(null);
-
-  // Form state using Svelte 5 $state rune for reactivity
-  let formData = $state({
-    id: 0,
-    nik: "",
-    name: "",
-    password: "",
-    role: "cutting" as "admin" | "cutting" | "pressing",
-  });
-
-  // Check admin role on mount
+  // Load data on mount
   onMount(() => {
-    if (browser) {
-      const authState = get(auth);
-      if (!authState.user || authState.user.role !== "admin") {
-        goto("/");
-      } else {
-        fetchUsers();
-      }
-    }
+    loadData();
   });
-
-  // Fetch users from API
-  async function fetchUsers() {
-    const authToken = get(auth).token;
-    if (!authToken) return;
-
-    isLoading = true;
-    errorMessage = "";
-
-    try {
-      const response = await fetch(`${API_URL}/api/users/`, {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch users");
-      }
-
-      const data = await response.json();
-      users = data.users || [];
-    } catch (error) {
-      errorMessage =
-        error instanceof Error ? error.message : "An error occurred";
-      console.error("Error fetching users:", error);
-    } finally {
-      isLoading = false;
-    }
-  }
-
-  // Open modal for adding new user
-  function openAddModal() {
-    isEditing = false;
-    editingUser = null;
-
-    formData.id = 0;
-    formData.nik = "";
-    formData.name = "";
-    formData.password = "";
-    formData.role = "cutting";
-
-    showModal = true;
-    errorMessage = "";
-  }
-
-  // Open modal for editing user
-  function openEditModal(user: User) {
-    isEditing = true;
-    editingUser = user;
-
-    formData.id = user.id;
-    formData.nik = user.nik;
-    formData.name = user.name;
-    formData.password = ""; // Password is optional when editing
-    formData.role = user.role as "admin" | "cutting" | "pressing";
-
-    showModal = true;
-    errorMessage = "";
-  }
-
-  // Close modal
-  function closeModal() {
-    showModal = false;
-    isEditing = false;
-    editingUser = null;
-
-    formData.id = 0;
-    formData.nik = "";
-    formData.name = "";
-    formData.password = "";
-    formData.role = "cutting";
-
-    errorMessage = "";
-  }
-
-  // Handle form submission (Add or Edit)
-  async function handleSubmit() {
-    const authToken = get(auth).token;
-    if (!authToken) return;
-
-    errorMessage = "";
-
-    // Validation - read from reactive $state object
-    if (!formData.nik.trim() || !formData.name.trim()) {
-      errorMessage = "NIK and Name are required";
-      return;
-    }
-
-    if (!isEditing && !formData.password.trim()) {
-      errorMessage = "Password is required for new users";
-      return;
-    }
-
-    try {
-      const url = isEditing
-        ? `${API_URL}/api/users/${editingUser?.id}`
-        : `${API_URL}/api/users/`;
-
-      const method = isEditing ? "PUT" : "POST";
-
-      const body: any = {
-        nik: formData.nik.trim(),
-        name: formData.name.trim(),
-        role: formData.role,
-      };
-
-      // Only include password if provided (for edit) or always (for add)
-      if (isEditing && formData.password.trim()) {
-        body.password = formData.password.trim();
-      } else if (!isEditing) {
-        body.password = formData.password.trim();
-      }
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify(body),
-      });
-
-      console.log("Sending Payload:", body);
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Operation failed");
-      }
-
-      // Success - close modal and refetch
-      closeModal();
-      await fetchUsers();
-    } catch (error) {
-      errorMessage =
-        error instanceof Error ? error.message : "An error occurred";
-      console.error("Error saving user:", error);
-    }
-  }
-
-  // Handle delete user
-  async function handleDelete(user: User) {
-    const authToken = get(auth).token;
-    if (!authToken) return;
-
-    const confirmed = confirm(
-      `Are you sure you want to delete user "${user.name}" (NIK: ${user.nik})?`
-    );
-    if (!confirmed) return;
-
-    try {
-      const response = await fetch(`${API_URL}/api/users/${user.id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to delete user");
-      }
-
-      // Success - refetch users
-      await fetchUsers();
-    } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to delete user");
-      console.error("Error deleting user:", error);
-    }
-  }
-
-  // Get role badge color
-  function getRoleBadgeColor(role: string): string {
-    switch (role) {
-      case "admin":
-        return "bg-purple-100 text-purple-700 border-purple-200";
-      case "cutting":
-        return "bg-blue-100 text-blue-700 border-blue-200";
-      case "pressing":
-        return "bg-amber-100 text-amber-700 border-amber-200";
-      default:
-        return "bg-slate-100 text-slate-700 border-slate-200";
-    }
-  }
 </script>
 
 <div
