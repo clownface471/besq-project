@@ -193,7 +193,6 @@
 	}
 </script>
 
-<<<<<<< HEAD
 <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
   <div
     class="border w-full max-w-sm overflow-hidden shadow-2xl bg-white rounded-3xl p-8 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(0,0,0,0.2)]"
@@ -270,13 +269,12 @@
 						/>
 					</div>
 
-<<<<<<< HEAD
     <a href="/karyawan"
       class="bg-indigo-600 shadow-lg shadow-blue-300/50 transition-all duration-300 hover:bg-indigo-700 hover:shadow-blue-400/50 hover:-translate-y-1 text-white font-bold py-3.5 px-4 rounded-xl w-full mt-8 cursor-pointer active:scale-95 flex justify-center items-center gap-2"
     >
       <span>Submit</span>
     </a>
-=======
+
 					<div>
 						<label
 							for="password"
