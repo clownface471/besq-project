@@ -888,6 +888,7 @@
   
   :global(input[type="range"]) {
     -webkit-appearance: none;
+    appearance: none;
     height: 6px;
     background: #e5e7eb;
     border-radius: 3px;
@@ -896,6 +897,7 @@
   
   :global(input[type="range"]::-webkit-slider-thumb) {
     -webkit-appearance: none;
+    appearance: none;
     width: 14px;
     height: 14px;
     background: #6366f1;
@@ -905,6 +907,7 @@
   
   :global(input[type="color"]) {
     -webkit-appearance: none;
+    appearance: none;
     border: none;
     padding: 0;
   }
