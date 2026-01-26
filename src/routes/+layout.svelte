@@ -1,13 +1,15 @@
 <script lang="ts">
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
+
+
 	import { auth, logout, type User } from '$lib/stores/auth';
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
 	import Swal from 'sweetalert2';
 
-	let { children } = $props();
+	export let children;
 
 	const routePermissions: Record<string, string[]> = {
 		'/admin': ['admin'],
@@ -16,9 +18,7 @@
 		'/pressing': ['admin', 'pressing']
 	};
 
-	$effect(() => {
-		if (!browser) return;
-
+	$: if (browser) {
 		const pathname = $page.url.pathname;
 		const user = $auth.user;
 		const isLoggedIn = $auth.isLoggedIn;
@@ -26,7 +26,6 @@
 		// 1. If not logged in and not on the public root page, redirect to root
 		if (!isLoggedIn && pathname !== '/') {
 			goto('/');
-			return;
 		}
 
 		// 2. If logged in, check role-based permissions
@@ -45,7 +44,7 @@
 				goto('/'); // Redirect to a safe default page
 			}
 		}
-	});
+	}
 
 	async function handleLogout() {
 		const result = await Swal.fire({
