@@ -32,6 +32,7 @@ func main() {
 	authController := controllers.NewAuthController(db)
 	userController := controllers.NewUserController(db)
 	dashboardController := controllers.NewDashboardController(db)
+	productionController := controllers.NewProductionController(db)
 
 	// Initialize Gin router
 	r := gin.Default()
@@ -60,11 +61,11 @@ func main() {
 
 	// Public authentication route
 	r.POST("/login", authController.Login)
-	
+
 	// API group
 	api := r.Group("/api")
 	// Use the authentication middleware for all routes in this group
-	api.Use(middleware.AuthMiddleware()) 
+	api.Use(middleware.AuthMiddleware())
 	{
 		// Welcome message for the API
 		api.GET("/", func(c *gin.Context) {
@@ -89,6 +90,22 @@ func main() {
 			adminRoutes.GET("/:id", userController.GetUser)
 			adminRoutes.PUT("/:id", userController.UpdateUser)
 			adminRoutes.DELETE("/:id", userController.DeleteUser)
+		}
+
+		// Cutting production routes (allowed: admin, cutting)
+		cuttingRoutes := api.Group("/cutting")
+		cuttingRoutes.Use(middleware.RequireRoles("admin", "cutting"))
+		{
+			cuttingRoutes.POST("/", productionController.CreateCuttingEntry)
+			cuttingRoutes.GET("/today", productionController.GetCuttingLogs)
+		}
+
+		// Pressing production routes (allowed: admin, pressing)
+		pressingRoutes := api.Group("/pressing")
+		pressingRoutes.Use(middleware.RequireRoles("admin", "pressing"))
+		{
+			pressingRoutes.POST("/", productionController.CreatePressingEntry)
+			pressingRoutes.GET("/today", productionController.GetPressingLogs)
 		}
 	}
 

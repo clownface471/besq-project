@@ -1,924 +1,369 @@
 <script lang="ts">
-  let pressRequests = [
-    {
-      id: 1,
-      lotNo: "LOT-2024-001",
-      qty: 50,
-      status: "Urgent",
-      note: "Material A1",
-    },
-    {
-      id: 2,
-      lotNo: "LOT-2024-005",
-      qty: 120,
-      status: "Normal",
-      note: "Material B2",
-    },
-  ];
+	import { onMount } from 'svelte';
+	import { auth } from '$lib/stores/auth';
+	import { goto } from '$app/navigation';
 
-  const employee = {
-    name: "Tono Widiyanto",
-    position: "Senior Cutting Specialist",
-    department: "Production - Cutting",
-    nik: "KRTP-2023-0456",
-    phone: "+62 812-3456-7890",
-    photo:
-      "https://i.pinimg.com/550x/26/38/08/2638086da29fccffa32c5666ea77ce09.jpg",
-  };
+	interface FormData {
+		partName: string;
+		quantity: number;
+		reject: number;
+	}
 
-  let dailyCompounds = [
-    { day: "Senin", short: "Sen", target: 4, actual: 4, efficiency: 100 },
-    { day: "Selasa", short: "Sel", target: 4, actual: 3.5, efficiency: 88 },
-    { day: "Rabu", short: "Rab", target: 4, actual: 5, efficiency: 125 },
-    { day: "Kamis", short: "Kam", target: 4, actual: 4, efficiency: 100 },
-    { day: "Jumat", short: "Jum", target: 4, actual: 4, efficiency: 100 },
-    { day: "Sabtu", short: "Sab", target: 3, actual: 2, efficiency: 67 },
-    { day: "Minggu", short: "Min", target: 0, actual: 0, efficiency: 0 },
-  ];
+	interface DailyLog {
+		id: number;
+		time: string;
+		partName: string;
+		quantity: number;
+		reject: number;
+		total: number;
+	}
 
-  let monthlyData = {
-    completed: 18,
-    target: 20,
-    efficiency: 90,
-    todayCompleted: 3,
-    todayTarget: 4,
-  };
+	// Reactive state
+	let formData = $state<FormData>({
+		partName: '',
+		quantity: 0,
+		reject: 0,
+	});
 
-  let recentScans = [
-    {
-      id: 1,
-      lot: "KPCP-2309-A01",
-      timeStart: "10:30",
-      timeEnd: "11:15",
-      status: "Proses",
-      pic: "Tono W.",
-    },
-    {
-      id: 2,
-      lot: "KPCP-2309-A02",
-      timeStart: "10:15",
-      timeEnd: "11:00",
-      status: "Selesai",
-      pic: "Tono W.",
-    },
-    {
-      id: 3,
-      lot: "KPCP-2309-B05",
-      timeStart: "09:45",
-      timeEnd: "10:30",
-      status: "Selesai",
-      pic: "Tono W.",
-    },
-  ];
+	let dailyLogs = $state<DailyLog[]>([]);
+	let isLoading = $state(false);
+	let error = $state<string | null>(null);
+	let successMessage = $state<string | null>(null);
 
-  // Logic untuk Bar Chart Scale
-  // Mencari nilai tertinggi antara target atau actual untuk menentukan tinggi max chart (biar tidak tembus)
-  const maxChartValue = Math.max(
-    ...dailyCompounds.map((d) => d.actual),
-    ...dailyCompounds.map((d) => d.target),
-    6
-  );
+	// Derived state for total calculation
+	let total = $derived(Math.max(0, formData.quantity - formData.reject));
 
-  function handleLogout() {
-    if (confirm("Apakah Anda yakin ingin keluar?")) {
-      window.location.href = "/";
-    }
-  }
+	// Role guard on mount
+	onMount(() => {
+		if (!$auth.user || ($auth.user.role !== 'cutting' && $auth.user.role !== 'admin')) {
+			alert('⚠️ Unauthorized: Only Cutting or Admin users can access this page');
+			goto('/');
+			return;
+		}
+		
+		// Fetch daily logs
+		fetchDailyLogs();
+	});
 
-  function getEfficiencyColor(efficiency: number) {
-    if (efficiency >= 100)
-      return "text-emerald-600 bg-emerald-50 border-emerald-100";
-    if (efficiency >= 80) return "text-amber-600 bg-amber-50 border-amber-100";
-    return "text-rose-600 bg-rose-50 border-rose-100";
-  }
+	// Fetch daily logs from API
+	async function fetchDailyLogs() {
+		try {
+			isLoading = true;
+			const response = await fetch('/api/cutting/today', {
+				headers: {
+					'Authorization': `Bearer ${$auth.token}`,
+				},
+			});
 
-  function getBarColor(efficiency: number) {
-    if (efficiency >= 100)
-      return "bg-emerald-500 from-emerald-500 to-emerald-400";
-    if (efficiency >= 80) return "bg-amber-500 from-amber-500 to-amber-400";
-    return "bg-rose-500 from-rose-500 to-rose-400";
-  }
+			if (!response.ok) {
+				throw new Error('Failed to fetch daily logs');
+			}
 
-  function getStatusColor(status: string) {
-    if (status === "Proses") return "bg-blue-50 text-blue-700 border-blue-100";
-    if (status === "Selesai")
-      return "bg-slate-100 text-slate-600 border-slate-200";
-    return "bg-amber-50 text-amber-700 border-amber-100";
-  }
+			const data = await response.json();
+			dailyLogs = data.cutting_logs || [];
+		} catch (err) {
+			console.error('Error fetching daily logs:', err);
+			error = 'Failed to load daily logs';
+		} finally {
+			isLoading = false;
+		}
+	}
 
-  function handleRowClick() {
-    window.location.href = "/barcode";
-  }
+	// Handle form submission
+	async function handleSubmit(e: Event) {
+		e.preventDefault();
+		if (!formData.partName.trim()) {
+			error = 'Part name is required';
+			return;
+		}
 
-  import { auth } from "$lib/stores/auth";
-  import { onMount } from "svelte";
-  import { goto } from "$app/navigation";
-  import { browser } from "$app/environment";
-  import { get } from "svelte/store";
+		if (formData.quantity <= 0) {
+			error = 'Quantity must be greater than 0';
+			return;
+		}
 
-  interface User {
-    id: number;
-    nik: string;
-    name: string;
-    role: string;
-    created_at: string;
-    updated_at: string;
-  }
+		if (formData.reject < 0) {
+			error = 'Reject cannot be negative';
+			return;
+		}
 
-  const API_URL = "http://localhost:8080";
+		try {
+			isLoading = true;
+			error = null;
+			successMessage = null;
 
-  let users = $state<User[]>([]);
-  let isLoading = $state(false);
-  let errorMessage = $state("");
-  let showModal = $state(false);
-  let isEditing = $state(false);
-  let editingUser = $state<User | null>(null);
+			const response = await fetch('/api/cutting', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${$auth.token}`,
+				},
+				body: JSON.stringify({
+					partName: formData.partName,
+					quantity: formData.quantity,
+					reject: formData.reject,
+				}),
+			});
 
-  // Form state using Svelte 5 $state rune for reactivity
-  let formData = $state({
-    id: 0,
-    nik: "",
-    name: "",
-    password: "",
-    role: "cutting" as "admin" | "cutting" | "pressing",
-  });
+			if (!response.ok) {
+				throw new Error('Failed to create cutting entry');
+			}
 
-  // Check admin role on mount
-  onMount(() => {
-    if (browser) {
-      const authState = get(auth);
-      if (!authState.user || authState.user.role !== "admin") {
-        goto("/");
-      } else {
-        fetchUsers();
-      }
-    }
-  });
+			successMessage = '✓ Cutting entry recorded successfully';
+			
+			// Reset form
+			formData = {
+				partName: '',
+				quantity: 0,
+				reject: 0,
+			};
 
-  // Fetch users from API
-  async function fetchUsers() {
-    const authToken = get(auth).token;
-    if (!authToken) return;
+			// Refresh daily logs
+			await fetchDailyLogs();
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'An error occurred';
+			console.error('Error submitting form:', err);
+		} finally {
+			isLoading = false;
+		}
+	}
 
-    isLoading = true;
-    errorMessage = "";
+	// Format time from ISO string
+	function formatTime(isoString: string): string {
+		const date = new Date(isoString);
+		return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+	}
 
-    try {
-      const response = await fetch(`${API_URL}/api/users/`, {
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
+	// Calculate total for the day
+	let totalQuantity = $derived(dailyLogs.reduce((sum, log) => sum + log.quantity, 0));
+	let totalReject = $derived(dailyLogs.reduce((sum, log) => sum + log.reject, 0));
+	let totalProduction = $derived(dailyLogs.reduce((sum, log) => sum + log.total, 0));
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch users");
-      }
-
-      const data = await response.json();
-      users = data.users || [];
-    } catch (error) {
-      errorMessage =
-        error instanceof Error ? error.message : "An error occurred";
-      console.error("Error fetching users:", error);
-    } finally {
-      isLoading = false;
-    }
-  }
-
-  // Open modal for adding new user
-  function openAddModal() {
-    isEditing = false;
-    editingUser = null;
-
-    formData.id = 0;
-    formData.nik = "";
-    formData.name = "";
-    formData.password = "";
-    formData.role = "cutting";
-
-    showModal = true;
-    errorMessage = "";
-  }
-
-  // Open modal for editing user
-  function openEditModal(user: User) {
-    isEditing = true;
-    editingUser = user;
-
-    formData.id = user.id;
-    formData.nik = user.nik;
-    formData.name = user.name;
-    formData.password = ""; // Password is optional when editing
-    formData.role = user.role as "admin" | "cutting" | "pressing";
-
-    showModal = true;
-    errorMessage = "";
-  }
-
-  // Close modal
-  function closeModal() {
-    showModal = false;
-    isEditing = false;
-    editingUser = null;
-
-    formData.id = 0;
-    formData.nik = "";
-    formData.name = "";
-    formData.password = "";
-    formData.role = "cutting";
-
-    errorMessage = "";
-  }
-
-  // Handle form submission (Add or Edit)
-  async function handleSubmit() {
-    const authToken = get(auth).token;
-    if (!authToken) return;
-
-    errorMessage = "";
-
-    // Validation - read from reactive $state object
-    if (!formData.nik.trim() || !formData.name.trim()) {
-      errorMessage = "NIK and Name are required";
-      return;
-    }
-
-    if (!isEditing && !formData.password.trim()) {
-      errorMessage = "Password is required for new users";
-      return;
-    }
-
-    try {
-      const url = isEditing
-        ? `${API_URL}/api/users/${editingUser?.id}`
-        : `${API_URL}/api/users/`;
-
-      const method = isEditing ? "PUT" : "POST";
-
-      const body: any = {
-        nik: formData.nik.trim(),
-        name: formData.name.trim(),
-        role: formData.role,
-      };
-
-      // Only include password if provided (for edit) or always (for add)
-      if (isEditing && formData.password.trim()) {
-        body.password = formData.password.trim();
-      } else if (!isEditing) {
-        body.password = formData.password.trim();
-      }
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${authToken}`,
-        },
-        body: JSON.stringify(body),
-      });
-
-      console.log("Sending Payload:", body);
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Operation failed");
-      }
-
-      // Success - close modal and refetch
-      closeModal();
-      await fetchUsers();
-    } catch (error) {
-      errorMessage =
-        error instanceof Error ? error.message : "An error occurred";
-      console.error("Error saving user:", error);
-    }
-  }
-
-  // Handle delete user
-  async function handleDelete(user: User) {
-    const authToken = get(auth).token;
-    if (!authToken) return;
-
-    const confirmed = confirm(
-      `Are you sure you want to delete user "${user.name}" (NIK: ${user.nik})?`
-    );
-    if (!confirmed) return;
-
-    try {
-      const response = await fetch(`${API_URL}/api/users/${user.id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${authToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || "Failed to delete user");
-      }
-
-      // Success - refetch users
-      await fetchUsers();
-    } catch (error) {
-      alert(error instanceof Error ? error.message : "Failed to delete user");
-      console.error("Error deleting user:", error);
-    }
-  }
-
-  // Get role badge color
-  function getRoleBadgeColor(role: string): string {
-    switch (role) {
-      case "admin":
-        return "bg-purple-100 text-purple-700 border-purple-200";
-      case "cutting":
-        return "bg-blue-100 text-blue-700 border-blue-200";
-      case "pressing":
-        return "bg-amber-100 text-amber-700 border-amber-200";
-      default:
-        return "bg-slate-100 text-slate-700 border-slate-200";
-    }
-  }
+	// Clear error message
+	function clearError() {
+		error = null;
+	}
 </script>
 
-<div
-  class="min-h-screen bg-slate-50 font-sans text-slate-800 pb-12 relative selection:bg-indigo-100 selection:text-indigo-800"
->
-  <div
-    class="absolute inset-0 z-0 opacity-[0.03] pointer-events-none"
-    style="background-image: radial-gradient(#4f46e5 1px, transparent 1px); background-size: 24px 24px;"
-  ></div>
+<div class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 pb-12">
+	<!-- Header -->
+	<header class="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm">
+		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+			<div>
+				<h1 class="text-2xl md:text-3xl font-bold text-slate-800">
+					✂️ Cutting Department
+				</h1>
+				<p class="text-sm text-slate-500 mt-1">Production Input & Daily Log</p>
+			</div>
+			<div class="text-right">
+				<p class="text-sm text-slate-600 font-medium">
+					{$auth.user?.name || 'User'} • <span class="capitalize bg-blue-50 text-blue-700 px-2 py-1 rounded inline-block">{$auth.user?.role}</span>
+				</p>
+				<p class="text-xs text-slate-400 mt-1">
+					{new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+				</p>
+			</div>
+		</div>
+	</header>
 
-  <header class="sticky top-0 md:static z-50 transition-all duration-300">
-    <div
-      class="bg-white/80 backdrop-blur-md md:bg-transparent border-b border-slate-200 md:border-none shadow-sm md:shadow-none"
-    >
-      <div
-        class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 flex justify-between items-center"
-      >
-        <div class="flex items-center gap-4">
-          <div
-            class="md:hidden w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-500/30"
-          >
-            D
-          </div>
-          <div>
-            <h1
-              class="text-xl md:text-3xl font-bold text-slate-800 md:text-white tracking-tight"
-            >
-              Dashboard Karyawan
-            </h1>
-            <div class="flex items-center gap-2 mt-1">
-              <span class="relative flex h-2 w-2 md:hidden">
-                <span
-                  class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"
-                ></span>
-                <span
-                  class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"
-                ></span>
-              </span>
-              <p class="text-xs text-slate-500 md:text-indigo-200 font-medium">
-                Selamat datang kembali, Semangat Bekerja!
-              </p>
-            </div>
-          </div>
-        </div>
+	<!-- Main Content -->
+	<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8 space-y-6">
+		<!-- Alert Messages -->
+		{#if error}
+			<div class="bg-rose-50 border border-rose-200 rounded-lg p-4 flex justify-between items-center animate-pulse">
+				<span class="text-rose-700 font-medium">⚠️ {error}</span>
+				<button onclick={clearError} class="text-rose-600 hover:text-rose-800">✕</button>
+			</div>
+		{/if}
 
-        <button
-          onclick={handleLogout}
-          class="group relative overflow-hidden px-4 py-2 md:px-5 md:py-2.5 rounded-xl transition-all duration-300
-                       bg-white border border-slate-200 text-slate-600 hover:text-rose-600 hover:border-rose-200 hover:shadow-lg
-                       md:bg-white/10 md:border-white/20 md:text-white md:hover:bg-white/20"
-        >
-          <div class="flex items-center gap-2 relative z-10">
-            <span class="hidden md:inline text-sm font-semibold">Logout</span>
-            <svg
-              class="w-5 h-5 md:w-4 md:h-4 transition-transform group-hover:translate-x-1"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-              /></svg
-            >
-          </div>
-        </button>
-      </div>
-    </div>
-  </header>
+		{#if successMessage}
+			<div class="bg-emerald-50 border border-emerald-200 rounded-lg p-4 animate-pulse">
+				<span class="text-emerald-700 font-medium">{successMessage}</span>
+			</div>
+		{/if}
 
-  <main
-    class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:-mt-24 relative z-10 space-y-6"
-  >
-    <div
-      class="bg-white rounded-2xl shadow-md border border-slate-100 overflow-visible group hover:shadow-lg transition-all duration-500 mx-auto w-full"
-    >
-      <div class="p-6 md:p-10">
-        <div
-          class="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start"
-        >
-          <div
-            class="relative shrink-0 -mt-16 md:-mt-20 group-hover:-translate-y-2 transition-transform duration-500"
-          >
-            <div
-              class="w-28 h-28 md:w-44 md:h-44 rounded-2xl overflow-hidden border-4 md:border-[6px] border-white shadow-lg ring-1 ring-slate-100 mt-10"
-            >
-              <img
-                src={employee.photo}
-                alt={employee.name}
-                class="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
-              />
-            </div>
-            <div
-              class="absolute bottom-2 right-2 md:bottom-4 md:right-4 bg-white p-1.5 rounded-full shadow-md"
-            >
-              <div
-                class="w-4 h-4 md:w-5 md:h-5 bg-emerald-500 rounded-full border-2 md:border-[3px] border-white animate-pulse"
-              ></div>
-            </div>
-          </div>
+		<!-- Grid Layout -->
+		<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+			<!-- Input Form Card -->
+			<div class="lg:col-span-1">
+				<div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 sticky top-24">
+					<div class="flex items-center gap-3 mb-6">
+						<div class="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+							<svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 1112 2.944a11.954 11.954 0 018.618 3.04A12.02 12.02 0 0121 12" />
+							</svg>
+						</div>
+						<h2 class="text-xl font-bold text-slate-800">Input Form</h2>
+					</div>
 
-          <div class="flex-1 text-center md:text-left w-full pt-2">
-            <div
-              class="flex flex-col md:flex-row justify-between items-center md:items-start gap-4"
-            >
-              <div>
-                <h2
-                  class="text-2xl md:text-4xl font-bold text-slate-800 tracking-tight mb-2"
-                >
-                  {employee.name}
-                </h2>
-                <div
-                  class="flex flex-wrap justify-center md:justify-start gap-2 mb-4"
-                >
-                  <span
-                    class="px-3 py-1 bg-indigo-50 text-indigo-700 text-xs md:text-sm font-bold uppercase tracking-wide rounded-full border border-indigo-100"
-                    >{employee.position}</span
-                  >
-                  <span
-                    class="px-3 py-1 bg-slate-100 text-slate-600 text-xs md:text-sm font-semibold rounded-full border border-slate-200"
-                    >{employee.department}</span
-                  >
-                </div>
-              </div>
-              <div class="hidden md:block text-right">
-                <div class="text-sm font-medium text-slate-400">Hari ini</div>
-                <div class="text-xl font-bold text-slate-700">
-                  {new Date().toLocaleDateString("id-ID", {
-                    weekday: "long",
-                    day: "numeric",
-                    month: "long",
-                  })}
-                </div>
-              </div>
-            </div>
+					<form onsubmit={handleSubmit} class="space-y-4">
+						<!-- Part Name -->
+						<div>
+							<label for="partName" class="block text-sm font-medium text-slate-700 mb-2">
+								Part Name <span class="text-rose-500">*</span>
+							</label>
+							<input
+								type="text"
+								id="partName"
+								bind:value={formData.partName}
+								placeholder="e.g., PART-001"
+								class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+								disabled={isLoading}
+							/>
+						</div>
 
-            <div
-              class="grid grid-cols-1 md:grid-cols-3 gap-3 border-t border-slate-100 pt-5 mt-2"
-            >
-              <div
-                class="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors cursor-default border border-transparent hover:border-slate-100"
-              >
-                <div
-                  class="w-10 h-10 rounded-lg bg-slate-100 text-slate-500 flex items-center justify-center shrink-0"
-                >
-                  <svg
-                    class="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"
-                    /></svg
-                  >
-                </div>
-                <div class="text-left overflow-hidden">
-                  <p
-                    class="text-xs text-slate-400 font-bold uppercase truncate"
-                  >
-                    NIK ID
-                  </p>
-                  <p class="font-mono font-medium text-slate-800 truncate">
-                    {employee.nik}
-                  </p>
-                </div>
-              </div>
-              <div
-                class="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors cursor-default border border-transparent hover:border-slate-100"
-              >
-                <div
-                  class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0"
-                >
-                  <svg
-                    class="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                    /></svg
-                  >
-                </div>
-                <div class="text-left overflow-hidden">
-                  <p
-                    class="text-xs text-slate-400 font-bold uppercase truncate"
-                  >
-                    Telepon
-                  </p>
-                  <p class="font-medium text-slate-800 truncate">
-                    {employee.phone}
-                  </p>
-                </div>
-              </div>
-              <div
-                class="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors cursor-default border border-transparent hover:border-slate-100"
-              >
-                <div
-                  class="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0"
-                >
-                  <svg
-                    class="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    ><path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                    /></svg
-                  >
-                </div>
-                <div class="text-left overflow-hidden">
-                  <p
-                    class="text-xs text-slate-400 font-bold uppercase truncate"
-                  >
-                    Shift
-                  </p>
-                  <p class="font-medium text-slate-800 truncate">
-                    Shift 1 (07:00 - 15:00)
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+						<!-- Quantity -->
+						<div>
+							<label for="quantity" class="block text-sm font-medium text-slate-700 mb-2">
+								Quantity <span class="text-rose-500">*</span>
+							</label>
+							<input
+								type="number"
+								id="quantity"
+								bind:value={formData.quantity}
+								min="1"
+								placeholder="0"
+								class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+								disabled={isLoading}
+							/>
+						</div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <div
-        class="bg-white rounded-3xl p-6 lg:p-8 shadow-sm border border-slate-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col h-full"
-      >
-        <div class="flex justify-between items-start mb-4">
-          <div>
-            <h3 class="font-bold text-slate-800 text-lg">Target Hari Ini</h3>
-            <p class="text-sm text-slate-500">Progress pressing lot</p>
-          </div>
-          <div class="bg-indigo-50 p-2 rounded-lg text-indigo-600">
-            <svg
-              class="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M13 10V3L4 14h7v7l9-11h-7z"
-              /></svg
-            >
-          </div>
-        </div>
+						<!-- Reject -->
+						<div>
+							<label for="reject" class="block text-sm font-medium text-slate-700 mb-2">
+								Reject <span class="text-slate-400 text-xs">(Optional)</span>
+							</label>
+							<input
+								type="number"
+								id="reject"
+								bind:value={formData.reject}
+								min="0"
+								placeholder="0"
+								class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition"
+								disabled={isLoading}
+							/>
+						</div>
 
-        <div class="flex-1 flex flex-col items-center justify-center py-4">
-          <div class="relative w-48 h-48 lg:w-56 lg:h-56 group cursor-default">
-            <svg class="w-full h-full transform -rotate-90">
-              <circle
-                cx="50%"
-                cy="50%"
-                r="45%"
-                stroke="currentColor"
-                stroke-width="15"
-                fill="transparent"
-                class="text-slate-100"
-              />
-              <circle
-                cx="50%"
-                cy="50%"
-                r="45%"
-                stroke="currentColor"
-                stroke-width="15"
-                fill="transparent"
-                stroke-dasharray={440}
-                stroke-dashoffset={440 -
-                  440 * (monthlyData.todayCompleted / monthlyData.todayTarget)}
-                class="text-indigo-600 transition-all duration-1000 ease-out drop-shadow-lg"
-                stroke-linecap="round"
-              />
-            </svg>
-            <div
-              class="absolute inset-0 flex flex-col items-center justify-center transition-transform duration-300 group-hover:scale-110"
-            >
-              <span class="text-5xl lg:text-6xl font-bold text-slate-800"
-                >{monthlyData.todayCompleted}</span
-              >
-              <span
-                class="text-xs text-slate-400 font-bold uppercase tracking-wider mt-1"
-                >/ {monthlyData.todayTarget} Lot</span
-              >
-            </div>
-          </div>
-        </div>
+						<!-- Total Display -->
+						<div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+							<div class="text-xs font-medium text-slate-600 mb-1">TOTAL PRODUCTION</div>
+							<div class="text-3xl font-bold text-blue-600">{total}</div>
+							<div class="text-xs text-slate-500 mt-2">
+								= Quantity ({formData.quantity}) - Reject ({formData.reject})
+							</div>
+						</div>
 
-        <div class="mt-4 pt-4 border-t border-slate-100 text-center">
-          <p class="text-sm text-slate-600">
-            Kurang <strong class="text-rose-500"
-              >{monthlyData.todayTarget - monthlyData.todayCompleted} lot</strong
-            > lagi untuk mencapai target.
-          </p>
-        </div>
-      </div>
+						<!-- Submit Button -->
+						<button
+							type="submit"
+							disabled={isLoading}
+							class="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white font-semibold py-2 px-4 rounded-lg transition flex items-center justify-center gap-2"
+						>
+							{#if isLoading}
+								<svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+									<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+									<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+								</svg>
+								Submitting...
+							{:else}
+								<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+								</svg>
+								Record Entry
+							{/if}
+						</button>
+					</form>
+				</div>
+			</div>
 
-      <div
-        class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 lg:p-8 flex flex-col h-full"
-      >
-        <div class="flex justify-between items-center mb-6">
-          <h3 class="font-bold text-slate-800 text-lg">
-            Produktivitas Mingguan
-          </h3>
-          <span
-            class="text-xs font-medium bg-slate-100 text-slate-500 px-2 py-1 rounded-md"
-            >7 Hari Terakhir</span
-          >
-        </div>
+			<!-- Daily Logs Table -->
+			<div class="lg:col-span-2">
+				<div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+					<!-- Header -->
+					<div class="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200 p-6 flex items-center justify-between">
+						<div class="flex items-center gap-3">
+							<div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+								<svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+								</svg>
+							</div>
+							<div>
+								<h3 class="text-lg font-bold text-slate-800">Daily Logs</h3>
+								<p class="text-xs text-slate-500">Today's production entries</p>
+							</div>
+						</div>
+						<span class="text-sm font-medium text-slate-500 bg-white px-3 py-1 rounded-lg border border-slate-200">
+							{dailyLogs.length} entries
+						</span>
+					</div>
 
-        <!-- Mobile View (Horizontal Scroll) -->
-        <div class="md:hidden -mx-6 px-6 mb-4">
-          <div class="flex overflow-x-auto gap-3 pb-2 scrollbar-hide">
-            {#each dailyCompounds as day}
-              {#if day.short !== "Min"}
-                <div
-                  class="group flex flex-col items-center justify-end shrink-0 w-16 relative"
-                >
-                  <div
-                    class="absolute -top-8 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs py-1 px-2 rounded pointer-events-none z-10 whitespace-nowrap"
-                  >
-                    {day.target}/{day.actual}
-                  </div>
-                  <div
-                    class="relative w-10 h-40 bg-slate-50 rounded-t-lg overflow-hidden flex items-end shadow-sm border border-slate-100"
-                  >
-                    <div
-                      class={`w-full rounded-t-lg bg-gradient-to-t transition-all duration-1000 ease-out ${getBarColor(day.efficiency)}`}
-                      style={`height: ${(day.actual / maxChartValue) * 100}%`}
-                    ></div>
-                  </div>
-                  <div class="mt-2 text-center">
-                    <p class="text-xs font-bold text-slate-600">{day.short}</p>
-                    <p class="text-[10px] text-slate-400 font-mono mt-0.5">
-                      {day.actual}L
-                    </p>
-                  </div>
-                </div>
-              {/if}
-            {/each}
-          </div>
-        </div>
+					<!-- Summary Badges -->
+					<div class="grid grid-cols-3 gap-4 p-6 border-b border-slate-200 bg-slate-50">
+						<div class="text-center">
+							<div class="text-2xl font-bold text-blue-600">{totalQuantity}</div>
+							<div class="text-xs font-medium text-slate-600 mt-1">Total Qty</div>
+						</div>
+						<div class="text-center">
+							<div class="text-2xl font-bold text-rose-600">{totalReject}</div>
+							<div class="text-xs font-medium text-slate-600 mt-1">Total Reject</div>
+						</div>
+						<div class="text-center">
+							<div class="text-2xl font-bold text-emerald-600">{totalProduction}</div>
+							<div class="text-xs font-medium text-slate-600 mt-1">Total Hari Ini</div>
+						</div>
+					</div>
 
-        <div
-          class="hidden md:flex flex-1 items-end justify-between gap-2 md:gap-4 h-52 md:h-64 pb-2 border-b border-slate-100"
-        >
-          {#each dailyCompounds as day}
-            {#if day.short !== "Min"}
-              <div
-                class="group flex flex-col items-center justify-end h-full w-full relative"
-              >
-                <div
-                  class="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs py-1 px-2 rounded pointer-events-none mb-2 z-10 whitespace-nowrap"
-                >
-                  Target: {day.target} | Actual: {day.actual}
-                  <div
-                    class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-slate-800 rotate-45"
-                  ></div>
-                </div>
-                <div
-                  class="relative w-full max-w-10 h-full bg-slate-50 rounded-t-lg overflow-hidden flex items-end"
-                >
-                  <div
-                    class={`w-full rounded-t-lg bg-gradient-to-t transition-all duration-1000 ease-out ${getBarColor(day.efficiency)}`}
-                    style={`height: ${(day.actual / maxChartValue) * 100}%`}
-                  ></div>
-                </div>
-
-                <div class="mt-3 text-center">
-                  <p
-                    class="text-xs font-bold text-slate-500 group-hover:text-indigo-600 transition-colors"
-                  >
-                    {day.short}
-                  </p>
-                  <p class="text-[10px] text-slate-400 font-mono mt-0.5">
-                    {day.actual} Lot
-                  </p>
-                </div>
-              </div>
-            {/if}
-          {/each}
-        </div>
-
-        <div
-          class="mt-4 md:mt-4 flex flex-wrap justify-center md:justify-start gap-3 md:gap-4 text-xs text-slate-400 border-t border-slate-100 pt-4 md:pt-0 md:border-t-0"
-        >
-          <span class="flex items-center gap-2"
-            ><span class="w-3 h-3 rounded-full bg-emerald-500 shadow-sm"></span>
-            <span class="hidden sm:inline">&gt;100%</span><span
-              class="sm:hidden">Optimal</span
-            ></span
-          >
-          <span class="flex items-center gap-2"
-            ><span class="w-3 h-3 rounded-full bg-amber-500 shadow-sm"></span>
-            <span class="hidden sm:inline">&gt;80%</span><span class="sm:hidden"
-              >Baik</span
-            ></span
-          >
-          <span class="flex items-center gap-2"
-            ><span class="w-3 h-3 rounded-full bg-rose-500 shadow-sm"></span>
-            <span class="hidden sm:inline">&lt;80%</span><span class="sm:hidden"
-              >Perlu Tuning</span
-            ></span
-          >
-        </div>
-      </div>
-    </div>
-
-    <div
-      class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 lg:p-8"
-    >
-      <div
-        class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4"
-      >
-        <div>
-          <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
-            <svg
-              class="w-6 h-6 text-indigo-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              ><rect
-                x="3"
-                y="3"
-                width="18"
-                height="18"
-                rx="2"
-                stroke-width="2"
-              /><path
-                stroke-width="2"
-                d="M7 7h.01M17 7h.01M7 17h.01M17 17h.01"
-              /></svg
-            >
-            Antrian Scan KPCP
-          </h3>
-          <p class="text-sm text-slate-500">
-            Daftar lot yang baru saja discan dan diproses. Klik untuk scan lot
-            baru.
-          </p>
-        </div>
-      </div>
-
-      <!-- Mobile View (Card Layout) -->
-      <div class="md:hidden space-y-3">
-        {#each recentScans as scan}
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div
-            class="p-4 border border-slate-100 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
-            onclick={handleRowClick}
-          >
-            <div class="flex justify-between items-start mb-3">
-              <span class="font-mono font-bold text-indigo-600">{scan.lot}</span
-              >
-              <span
-                class={`px-2 py-1 rounded-full text-xs font-bold border ${getStatusColor(scan.status)}`}
-              >
-                {scan.status}
-              </span>
-            </div>
-            <div class="space-y-2 text-sm">
-              <div class="flex justify-between">
-                <span class="text-slate-500">Waktu Mulai:</span>
-                <span class="font-medium text-slate-700"
-                  >{scan.timeStart} WIB</span
-                >
-              </div>
-              <div class="flex justify-between">
-                <span class="text-slate-500">Waktu Selesai:</span>
-                <span class="font-medium text-slate-700"
-                  >{scan.timeEnd} WIB</span
-                >
-              </div>
-              <div class="flex justify-between">
-                <span class="text-slate-500">PIC:</span>
-                <span class="font-medium text-slate-700">{scan.pic}</span>
-              </div>
-            </div>
-          </div>
-        {/each}
-        {#if recentScans.length === 0}
-          <div class="py-8 text-center text-slate-400">
-            Belum ada data scan hari ini.
-          </div>
-        {/if}
-      </div>
-
-      <!-- Desktop View (Table Layout) -->
-      <div class="hidden md:block overflow-x-auto">
-        <table class="w-full text-left border-collapse">
-          <thead>
-            <tr
-              class="border-b border-slate-100 text-slate-400 text-xs uppercase tracking-wider"
-            >
-              <th class="pb-3 font-semibold">No. Lot</th>
-              <th class="pb-3 font-semibold">Waktu Mulai</th>
-              <th class="pb-3 font-semibold">Waktu Selesai</th>
-              <th class="pb-3 font-semibold">PIC</th>
-              <th class="pb-3 font-semibold text-right">Status</th>
-            </tr>
-          </thead>
-          <tbody class="text-sm">
-            {#each recentScans as scan}
-              <tr
-                class="group hover:bg-slate-50 transition-colors border-b last:border-0 border-slate-50 cursor-pointer"
-                onclick={handleRowClick}
-              >
-                <td
-                  class="py-4 font-mono font-bold text-slate-700 group-hover:text-indigo-600 transition-colors"
-                >
-                  {scan.lot}
-                </td>
-                <td class="py-4 text-slate-500">
-                  {scan.timeStart} WIB
-                </td>
-                <td class="py-4 text-slate-500">
-                  {scan.timeEnd} WIB
-                </td>
-                <td class="py-4 text-slate-600 font-medium">
-                  <div class="flex items-center gap-2">
-                    <div
-                      class="w-6 h-6 rounded-full bg-slate-200 text-[10px] flex items-center justify-center font-bold text-slate-500"
-                    >
-                      {scan.pic.charAt(0)}
-                    </div>
-                    {scan.pic}
-                  </div>
-                </td>
-                <td class="py-4 text-right">
-                  <span
-                    class={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(scan.status)}`}
-                  >
-                    {scan.status}
-                  </span>
-                </td>
-              </tr>
-            {/each}
-            {#if recentScans.length === 0}
-              <tr
-                ><td colspan="5" class="py-8 text-center text-slate-400"
-                  >Belum ada data scan hari ini.</td
-                ></tr
-              >
-            {/if}
-          </tbody>
-        </table>
-      </div>
-
-      <div class="mt-4 pt-2 border-t border-slate-50 text-center md:text-left">
-        <a
-          href="/history"
-          class="text-sm text-indigo-600 font-semibold hover:text-indigo-800 transition-colors"
-          >Lihat Riwayat Lengkap &rarr;</a
-        >
-      </div>
-    </div>
-  </main>
+					<!-- Table Content -->
+					<div class="overflow-x-auto">
+						{#if isLoading}
+							<div class="flex items-center justify-center py-12">
+								<div class="text-slate-500">Loading logs...</div>
+							</div>
+						{:else if dailyLogs.length === 0}
+							<div class="flex flex-col items-center justify-center py-12 text-slate-500">
+								<svg class="w-12 h-12 mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+								</svg>
+								<p class="text-sm font-medium">No entries yet</p>
+								<p class="text-xs">Start recording production data to see logs here</p>
+							</div>
+						{:else}
+							<table class="w-full">
+								<thead>
+									<tr class="border-b border-slate-200 bg-slate-50">
+										<th class="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Time</th>
+										<th class="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">Part Name</th>
+										<th class="px-6 py-3 text-center text-xs font-bold text-slate-700 uppercase tracking-wider">Qty</th>
+										<th class="px-6 py-3 text-center text-xs font-bold text-slate-700 uppercase tracking-wider">Reject</th>
+										<th class="px-6 py-3 text-center text-xs font-bold text-slate-700 uppercase tracking-wider">Total</th>
+									</tr>
+								</thead>
+								<tbody>
+									{#each dailyLogs as log (log.id)}
+										<tr class="border-b border-slate-100 hover:bg-slate-50 transition">
+											<td class="px-6 py-4 text-sm font-mono text-slate-600">
+												{formatTime(log.time)}
+											</td>
+											<td class="px-6 py-4 text-sm font-semibold text-slate-700">
+												{log.partName}
+											</td>
+											<td class="px-6 py-4 text-sm text-center font-medium text-slate-700">
+												{log.quantity}
+											</td>
+											<td class="px-6 py-4 text-sm text-center font-medium text-rose-600">
+												{log.reject}
+											</td>
+											<td class="px-6 py-4 text-sm text-center font-bold text-emerald-600">
+												{log.total}
+											</td>
+										</tr>
+									{/each}
+								</tbody>
+							</table>
+						{/if}
+					</div>
+				</div>
+			</div>
+		</div>
+	</main>
 </div>
-
-<style>
-  /* Hanya utility sederhana, layout responsive ditangani oleh Tailwind Classes */
-  /* Hide Scrollbar for cleaner look */
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-</style>
