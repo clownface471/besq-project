@@ -8,7 +8,7 @@
     <div class="mb-8">
       <div class="flex justify-center mb-2">
         <span
-          class="bg-blue-100 text-[#0065F8] text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest"
+          class="bg-indigo-100 text-indigo-500 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest"
           >Official Portal</span
         >
       </div>
@@ -20,7 +20,7 @@
       <div
         class="text-[#0065F8] text-7xl text-center flex items-center justify-center mt-6 drop-shadow-md"
       >
-        <i class="fas fa-circle-user text-blue-600"></i>
+        <i class="fas fa-circle-user text-indigo-600"></i>
       </div>
     </div>
 
@@ -56,8 +56,8 @@
       </div>
     </div>
 
-    <a href="/cutting"
-      class="bg-[#0065F8] shadow-lg shadow-blue-300/50 transition-all duration-300 hover:bg-[#004bbd] hover:shadow-blue-400/50 hover:-translate-y-1 text-white font-bold py-3.5 px-4 rounded-xl w-full mt-8 cursor-pointer active:scale-95 flex justify-center items-center gap-2"
+    <a href="/karyawan"
+      class="bg-indigo-600 shadow-lg shadow-blue-300/50 transition-all duration-300 hover:bg-indigo-700 hover:shadow-blue-400/50 hover:-translate-y-1 text-white font-bold py-3.5 px-4 rounded-xl w-full mt-8 cursor-pointer active:scale-95 flex justify-center items-center gap-2"
     >
       <span>Submit</span>
     </a>

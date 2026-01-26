@@ -103,7 +103,7 @@
 
   function handleBack() {
     stopCamera();
-    window.location.href = '/cutting';
+    window.location.href = '/karyawan';
   }
 
   onMount(() => {
