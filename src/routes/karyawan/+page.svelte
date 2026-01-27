@@ -14,6 +14,7 @@
   import { goto } from "$app/navigation";
   import { browser } from "$app/environment";
   import { get } from "svelte/store";
+  import { query } from "$app/server";
 
   interface User {
     id: number;
@@ -88,7 +89,7 @@
   function openAddModal() {
     isEditing = false;
     editingUser = null;
-
+    query 
     formData.id = 0;
     formData.nik = "";
     formData.name = "";
