@@ -34,7 +34,7 @@
     reject: "",
   });
 
-  const employee = {
+  let employee = {
     name: "Tono Widiyanto",
     position: "Senior Cutting Specialist",
     department: "Production - Cutting",
@@ -87,6 +87,42 @@
       status: "Selesai",
       pic: "Tono W.",
     },
+  ]);
+
+  // ===== LWP (Laporan Waktu Produksi) Data =====
+  let lwpRecords = $state<any[]>([
+    {
+      id: 1,
+      noMesin: "PRESS-01",
+      tanggal: "2024-01-15",
+      shift: "Shift 1",
+      nik: "KRTP-2023-0456",
+      records: [
+        {
+          id: 1,
+          kodeLSTP: "LSTP-2024-001",
+          noLot: "LOT-2024-001",
+          jamMulai: "07:00",
+          jamSelesai: "08:30",
+          hasilOk: 95,
+          totalOk: 95,
+          ng: 5,
+          klasifikasiReject: "Cacat Permukaan",
+        },
+        {
+          id: 2,
+          kodeLSTP: "LSTP-2024-002",
+          noLot: "LOT-2024-002",
+          jamMulai: "08:45",
+          jamSelesai: "10:15",
+          hasilOk: 102,
+          totalOk: 102,
+          ng: 3,
+          klasifikasiReject: "Dimensi",
+        },
+      ],
+    },
+    
   ]);
 
   // Logic untuk Bar Chart Scale
@@ -224,6 +260,19 @@
     window.location.href = "/barcode";
   }
 
+  function handleScanMachine() {
+    window.location.href = "/scan-mesin";
+  }
+
+  // Get color class for reject classification
+  function getRejectColor(classify: string) {
+    if (classify === "Cacat Permukaan")
+      return "bg-red-50 text-red-700 border-red-200";
+    if (classify === "Dimensi") return "bg-yellow-50 text-yellow-700 border-yellow-200";
+    if (classify === "Goresan") return "bg-orange-50 text-orange-700 border-orange-200";
+    return "bg-slate-50 text-slate-700 border-slate-200";
+  }
+
   // Load data on mount
   onMount(() => {
     loadData();
@@ -238,69 +287,8 @@
     style="background-image: radial-gradient(#4f46e5 1px, transparent 1px); background-size: 24px 24px;"
   ></div>
 
-  <header class="sticky top-0 md:static z-50 transition-all duration-300">
-    <div
-      class="bg-white/80 backdrop-blur-md md:bg-transparent border-b border-slate-200 md:border-none shadow-sm md:shadow-none"
-    >
-      <div
-        class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 flex justify-between items-center"
-      >
-        <div class="flex items-center gap-4">
-          <div
-            class="md:hidden w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-500/30"
-          >
-            D
-          </div>
-          <div>
-            <h1
-              class="text-xl md:text-3xl font-bold text-slate-800 md:text-white tracking-tight"
-            >
-              Dashboard Karyawan
-            </h1>
-            <div class="flex items-center gap-2 mt-1">
-              <span class="relative flex h-2 w-2 md:hidden">
-                <span
-                  class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"
-                ></span>
-                <span
-                  class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"
-                ></span>
-              </span>
-              <p class="text-xs text-slate-500 md:text-indigo-200 font-medium">
-                Selamat datang kembali, Semangat Bekerja!
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <button
-          onclick={handleLogout}
-          class="group relative overflow-hidden px-4 py-2 md:px-5 md:py-2.5 rounded-xl transition-all duration-300
-                       bg-white border border-slate-200 text-slate-600 hover:text-rose-600 hover:border-rose-200 hover:shadow-lg
-                       md:bg-white/10 md:border-white/20 md:text-white md:hover:bg-white/20"
-        >
-          <div class="flex items-center gap-2 relative z-10">
-            <span class="hidden md:inline text-sm font-semibold">Logout</span>
-            <svg
-              class="w-5 h-5 md:w-4 md:h-4 transition-transform group-hover:translate-x-1"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-              /></svg
-            >
-          </div>
-        </button>
-      </div>
-    </div>
-  </header>
-
   <main
-    class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:-mt-24 relative z-10 space-y-6"
+    class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:mt-6 relative z-10 space-y-6"
   >
     <div
       class="bg-white rounded-2xl shadow-md border border-slate-100 overflow-visible group hover:shadow-lg transition-all duration-500 mx-auto w-full"
@@ -310,7 +298,7 @@
           class="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start"
         >
           <div
-            class="relative shrink-0 -mt-16 md:-mt-20 group-hover:-translate-y-2 transition-transform duration-500"
+            class="relative shrink-0 -mt-16 md:-mt-8 group-hover:-translate-y-2 transition-transform duration-500"
           >
             <div
               class="w-28 h-28 md:w-44 md:h-44 rounded-2xl overflow-hidden border-4 md:border-[6px] border-white shadow-lg ring-1 ring-slate-100 mt-10"
@@ -661,6 +649,7 @@
       </a>
     </div>
 
+    <!-- Permintaan Tim Press Table -->
     <div
       class="mt-8 bg-white rounded-2xl border-2 border-amber-100 shadow-sm overflow-hidden"
     >
@@ -755,7 +744,169 @@
         </div>
       {/if}
     </div>
+
+    <!-- LWP (Laporan Waktu Produksi) Section -->
+    <div class="space-y-6">
+      <div class="bg-white rounded-2xl border-2 border-indigo-100 shadow-sm overflow-hidden">
+        <div class="bg-indigo-50 px-6 py-4 border-b border-indigo-100 flex justify-between items-center">
+          <div class="flex items-center gap-3">
+            <div class="p-2 bg-indigo-600 rounded-lg text-white">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-lg font-bold text-indigo-900">LWP - Laporan Waktu Produksi</h2>
+              <p class="text-xs text-indigo-700">Riwayat produksi dan hasil pressing per mesin</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- LWP Records by Machine -->
+        <div class="divide-y divide-slate-100">
+          {#each lwpRecords as machine}
+            <div class="p-6">
+              <!-- Machine Header -->
+              <div class="mb-4 p-4 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl border border-indigo-100">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <p class="text-xs text-slate-500 font-bold uppercase mb-1">No. Mesin</p>
+                    <p class="font-bold text-slate-800">{machine.noMesin}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-slate-500 font-bold uppercase mb-1">Tanggal</p>
+                    <p class="font-bold text-slate-800">
+                      {new Date(machine.tanggal).toLocaleDateString('id-ID')}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-slate-500 font-bold uppercase mb-1">Shift</p>
+                    <p class="font-bold text-slate-800">{machine.shift}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-slate-500 font-bold uppercase mb-1">NIK Operator</p>
+                    <p class="font-mono font-bold text-indigo-600">{machine.nik}</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Detail Records Table -->
+              <div class="overflow-x-auto -mx-6 px-6">
+                <table class="w-full text-left text-sm">
+                  <thead>
+                    <tr class="bg-slate-100 border-y border-slate-200">
+                      <th class="px-4 py-3 font-semibold text-slate-600 text-xs uppercase">Kode LSTP</th>
+                      <th class="px-4 py-3 font-semibold text-slate-600 text-xs uppercase">No. Lot</th>
+                      <th class="px-4 py-3 font-semibold text-slate-600 text-xs uppercase">Jam Mulai</th>
+                      <th class="px-4 py-3 font-semibold text-slate-600 text-xs uppercase">Jam Selesai</th>
+                      <th class="px-4 py-3 font-semibold text-slate-600 text-xs uppercase text-right">Hasil OK</th>
+                      <th class="px-4 py-3 font-semibold text-slate-600 text-xs uppercase text-right">Total OK</th>
+                      <th class="px-4 py-3 font-semibold text-slate-600 text-xs uppercase text-right">NG</th>
+                      <th class="px-4 py-3 font-semibold text-slate-600 text-xs uppercase">Klasifikasi Reject</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    {#each machine.records as record}
+                      <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-4 py-3">
+                          <span class="font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded text-xs">
+                            {record.kodeLSTP}
+                          </span>
+                        </td>
+                        <td class="px-4 py-3">
+                          <span class="font-mono font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded text-xs">
+                            {record.noLot}
+                          </span>
+                        </td>
+                        <td class="px-4 py-3 font-medium text-slate-700">{record.jamMulai}</td>
+                        <td class="px-4 py-3 font-medium text-slate-700">{record.jamSelesai}</td>
+                        <td class="px-4 py-3 text-right">
+                          <span class="font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded inline-block min-w-fit">
+                            {record.hasilOk}
+                          </span>
+                        </td>
+                        <td class="px-4 py-3 text-right">
+                          <span class="font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded inline-block min-w-fit">
+                            {record.totalOk}
+                          </span>
+                        </td>
+                        <td class="px-4 py-3 text-right">
+                          <span class="font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded inline-block min-w-fit">
+                            {record.ng}
+                          </span>
+                        </td>
+                        <td class="px-4 py-3">
+                          <span class={`px-2 py-1 rounded text-xs font-bold border ${getRejectColor(record.klasifikasiReject)}`}>
+                            {record.klasifikasiReject}
+                          </span>
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Summary Stats for this Machine -->
+              <div class="mt-4 grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div class="bg-emerald-50 p-3 rounded-lg border border-emerald-200">
+                  <p class="text-xs text-emerald-600 font-bold uppercase mb-1">Total OK</p>
+                  <p class="text-2xl font-bold text-emerald-700">
+                    {machine.records.reduce((sum: any, r: { totalOk: any; }) => sum + r.totalOk, 0)}
+                  </p>
+                </div>
+                <div class="bg-rose-50 p-3 rounded-lg border border-rose-200">
+                  <p class="text-xs text-rose-600 font-bold uppercase mb-1">Total NG</p>
+                  <p class="text-2xl font-bold text-rose-700">
+                    {machine.records.reduce((sum: any, r: { ng: any; }) => sum + r.ng, 0)}
+                  </p>
+                </div>
+                <div class="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                  <p class="text-xs text-blue-600 font-bold uppercase mb-1">Jumlah Lot</p>
+                  <p class="text-2xl font-bold text-blue-700">
+                    {machine.records.length}
+                  </p>
+                </div>
+                <div class="bg-purple-50 p-3 rounded-lg border border-purple-200">
+                  <p class="text-xs text-purple-600 font-bold uppercase mb-1">field</p>
+                  <p class="text-2xl font-bold text-purple-700">
+                    {((machine.records.reduce((sum: any, r: { totalOk: any; }) => sum + r.totalOk, 0) / (machine.records.reduce((sum: any, r: { totalOk: any; ng: any; }) => sum + r.totalOk + r.ng, 0) || 1)) * 100).toFixed(1)}%
+                  </p>
+                </div>
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200">
+                  <p class="text-xs text-slate-600 font-bold uppercase mb-1">Durasi Kerja</p>
+                  <p class="text-2xl font-bold text-slate-700">
+                    {machine.records.length > 0 ? `${machine.records.length * 1.5}h` : "-"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          {/each}
+
+          {#if lwpRecords.length === 0}
+            <div class="p-8 text-center text-slate-400 italic">
+              Belum ada data LWP untuk hari ini.
+            </div>
+          {/if}
+        </div>
+      </div>
+    </div>
   </main>
+
+  <!-- FAB Button for Scan Machine -->
+  <div class="fixed bottom-6 right-6 z-50 md:bottom-8 md:right-8">
+    <button
+      onclick={handleScanMachine}
+      class="group relative w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-full shadow-xl hover:shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 flex items-center justify-center text-white hover:from-indigo-700 hover:to-indigo-800"
+      title="Scan Mesin"
+    >
+      <svg class="w-7 h-7 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+      </svg>
+      <span class="hidden md:block absolute right-full mr-3 bg-slate-800 text-white text-sm font-semibold px-3 py-2 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+        Scan Mesin
+      </span>
+    </button>
+  </div>
 </div>
 
 <style>

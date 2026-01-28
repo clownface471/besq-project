@@ -239,7 +239,7 @@
   ></div>
 
   <main
-    class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:-mt-24 relative z-10 space-y-6"
+    class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:mt-6 relative z-10 space-y-6"
   >
     <div
       class="bg-white rounded-2xl shadow-md border border-slate-100 overflow-visible group hover:shadow-lg transition-all duration-500 mx-auto w-full"
@@ -249,7 +249,7 @@
           class="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start"
         >
           <div
-            class="relative shrink-0 -mt-16 md:-mt-20 group-hover:-translate-y-2 transition-transform duration-500"
+            class="relative shrink-0 -mt-16 md:-mt-8 group-hover:-translate-y-2 transition-transform duration-500"
           >
             <div
               class="w-28 h-28 md:w-44 md:h-44 rounded-2xl overflow-hidden border-4 md:border-[6px] border-white shadow-lg ring-1 ring-slate-100 mt-10"
@@ -734,6 +734,70 @@
           class="text-sm text-indigo-600 font-semibold hover:text-indigo-800 transition-colors"
           >Lihat Riwayat Lengkap &rarr;</a
         >
+      </div>
+    </div>
+
+    <!-- Permintaan Tim Press Table -->
+    <div
+      class="mt-8 bg-white rounded-2xl border-2 border-amber-100 shadow-sm overflow-hidden"
+    >
+      <div class="bg-amber-50 px-6 py-4 border-b border-amber-100">
+        <h3 class="font-bold text-slate-800 text-lg">
+          Permintaan Tim Press
+        </h3>
+      </div>
+
+      <div class="p-6">
+        {#if pressRequests.length > 0}
+          <div class="grid grid-cols-1 gap-4">
+            {#each pressRequests as request}
+              <div
+                class="p-4 rounded-lg bg-slate-50 border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center gap-4"
+              >
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm text-slate-500 truncate">
+                    No. Lot:{" "}
+                    <span class="font-mono font-semibold text-slate-800"
+                      >{request.lotNo}</span
+                    >
+                  </p>
+                  <p class="text-sm text-slate-500 truncate">
+                    Qty:{" "}
+                    <span class="font-mono font-semibold text-slate-800"
+                      >{request.qty}</span
+                    >
+                  </p>
+                  <p class="text-sm text-slate-500 truncate">
+                    Status:{" "}
+                    <span
+                      class={`font-mono font-semibold ${getStatusColor(
+                        request.status
+                      )}`}
+                      >{request.status}</span
+                    >
+                  </p>
+                  <p class="text-sm text-slate-500 truncate">
+                    Note:{" "}
+                    <span class="font-mono font-semibold text-slate-800"
+                      >{request.note}</span
+                    >
+                  </p>
+                </div>
+                <div>
+                  <button
+                    class="px-4 py-2 text-sm font-semibold rounded-lg bg-indigo-600 text-white shadow-md hover:bg-indigo-700 transition-all duration-300"
+                  >
+                    Proses
+                  </button>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <div class="py-4 text-center text-slate-400">
+            Belum ada permintaan tim press.
+          </div>
+        {/if}
       </div>
     </div>
   </main>

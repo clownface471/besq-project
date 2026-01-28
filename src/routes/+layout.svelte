@@ -13,12 +13,10 @@
 	let isMobile = $state(false);
 
 	const routePermissions: Record<string, string[]> = {
-		"/admin": ["admin"],
 		"/karyawan": ["admin"],
 		"/cutting": ["admin", "cutting"],
 		"/pressing": ["admin", "pressing"],
 	};
-
 	function checkScreenSize() {
 		if (typeof window !== 'undefined') {
 			isMobile = window.innerWidth < 768;
@@ -76,7 +74,7 @@
 					timer: 3000,
 					timerProgressBar: true
 				});
-				goto('/');
+				goto('/karyawan');
 			}
 		}
 		
@@ -164,6 +162,8 @@
 
 	<!-- Sidebar Overlay -->
 	{#if sidebarOpen && isMobile}
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
 			class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 transition-opacity duration-300 md:hidden"
 			onclick={() => sidebarOpen = false}
@@ -186,7 +186,6 @@
 				</div>
 				<div>
 					<h2 class="text-lg font-bold bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">BESQ Portal</h2>
-					<p class="text-xs text-slate-500 font-medium">v2.0</p>
 				</div>
 			</div>
 		</div>
@@ -209,107 +208,106 @@
 
 		<!-- Navigation -->
 		<nav class="flex-1 p-4 space-y-1.5 overflow-y-auto">
-			{#if canAccess("/")}
-				<a
-					href="/"
-					class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-200 group relative overflow-hidden"
-					class:text-indigo-600={$page.url.pathname === "/"}
-					class:bg-indigo-50={$page.url.pathname === "/"}
-				>
-					<div class="relative z-10 w-5 h-5 flex items-center justify-center">
-						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-						</svg>
-					</div>
-					<span class="font-semibold text-sm relative z-10">Dashboard</span>
-					{#if $page.url.pathname === "/"}
-						<span class="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-transparent -z-0"></span>
-						<span class="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600 shadow-sm"></span>
-					{/if}
-				</a>
-			{/if}
+			{#if $auth.isLoggedIn}
+				{#if $auth.user && $auth.user.role === "admin"}
+					<a
+						href="/admin"
+						class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-200 group relative overflow-hidden"
+						class:text-indigo-600={$page.url.pathname === "/admin"}
+						class:bg-indigo-50={$page.url.pathname === "/admin"}
+					>
+						<div class="relative z-10 w-5 h-5">
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+</svg>
+						</div>
+						<span class="font-semibold text-sm relative z-10">Admin</span>
+						{#if $page.url.pathname === "/admin"}
+							<span class="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-transparent -z-0"></span>
+							<span class="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600 shadow-sm"></span>
+						{/if}
+					</a>
+				{/if}
+				{#if canAccess("/karyawan")}
+					<a
+						href="/karyawan"
+						class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-200 group relative overflow-hidden"
+						class:text-indigo-600={$page.url.pathname === "/karyawan"}
+						class:bg-indigo-50={$page.url.pathname === "/karyawan"}
+					>
+						<div class="relative z-10 w-5 h-5">
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-3m0 0l7-4 7 4M5 9v10a1 1 0 001 1h12a1 1 0 001-1V9m-9 16l-7-4m0 0V5m7 4l7-4m0 0v10a1 1 0 01-1 1H4a1 1 0 01-1-1V9m9 16l7 4m0 0V5" />
+							</svg>
+						</div>
+						<span class="font-semibold text-sm relative z-10">Management karyawan</span>
+						{#if $page.url.pathname === "/karyawan"}
+							<span class="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-transparent -z-0"></span>
+							<span class="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600 shadow-sm"></span>
+						{/if}
+					</a>
+				{/if}
+				{#if canAccess("/pressing")}
+					<a
+						href="/pressing"
+						class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-200 group relative overflow-hidden"
+						class:text-indigo-600={$page.url.pathname === "/pressing"}
+						class:bg-indigo-50={$page.url.pathname === "/pressing"}
+					>
+						<div class="relative z-10 w-5 h-5">
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 20h16M7 20V4c0-.5.5-1 1-1h8c.5 0 1 .5 1 1v16" />
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 8h6m-3-5v5m-5 4h10v3H7v-3z" />
+							</svg>
+						</div>
+						<span class="font-semibold text-sm relative z-10">Pressing</span>
+						{#if $page.url.pathname === "/pressing"}
+							<span class="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-transparent -z-0"></span>
+							<span class="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600 shadow-sm"></span>
+						{/if}
+					</a>
+				{/if}
 
-			{#if canAccess("/karyawan")}
-				<a
-					href="/karyawan"
-					class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-200 group relative overflow-hidden"
-					class:text-indigo-600={$page.url.pathname === "/karyawan"}
-					class:bg-indigo-50={$page.url.pathname === "/karyawan"}
-				>
-					<div class="relative z-10 w-5 h-5">
-						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-						</svg>
-					</div>
-					<span class="font-semibold text-sm relative z-10">Karyawan</span>
-					{#if $page.url.pathname === "/karyawan"}
-						<span class="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-transparent -z-0"></span>
-						<span class="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600 shadow-sm"></span>
-					{/if}
-				</a>
-			{/if}
+				{#if canAccess("/cutting")}
+					<a
+						href="/cutting"
+						class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-200 group relative overflow-hidden"
+						class:text-indigo-600={$page.url.pathname === "/cutting"}
+						class:bg-indigo-50={$page.url.pathname === "/cutting"}
+					>
+						<div class="relative z-10 w-5 h-5">
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" />
+							</svg>
+						</div>
+						<span class="font-semibold text-sm relative z-10">Cutting</span>
+						{#if $page.url.pathname === "/cutting"}
+							<span class="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-transparent -z-0"></span>
+							<span class="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600 shadow-sm"></span>
+						{/if}
+					</a>
+				{/if}
 
-			{#if canAccess("/cutting")}
-				<a
-					href="/cutting"
-					class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-200 group relative overflow-hidden"
-					class:text-indigo-600={$page.url.pathname === "/cutting"}
-					class:bg-indigo-50={$page.url.pathname === "/cutting"}
-				>
-					<div class="relative z-10 w-5 h-5">
-						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.121 14.121L19 19m-7-7l7-7m-7 7l-2.879 2.879M12 12L9.121 9.121m0 5.758a3 3 0 10-4.243 4.243 3 3 0 004.243-4.243zm0-5.758a3 3 0 10-4.243-4.243 3 3 0 004.243 4.243z" />
-						</svg>
-					</div>
-					<span class="font-semibold text-sm relative z-10">Cutting</span>
-					{#if $page.url.pathname === "/cutting"}
-						<span class="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-transparent -z-0"></span>
-						<span class="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600 shadow-sm"></span>
-					{/if}
-				</a>
-			{/if}
+				<!-- Divider -->
+				<div class="my-2 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
 
-			{#if canAccess("/pressing")}
-				<a
-					href="/pressing"
-					class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-all duration-200 group relative overflow-hidden"
-					class:text-indigo-600={$page.url.pathname === "/pressing"}
-					class:bg-indigo-50={$page.url.pathname === "/pressing"}
-				>
-					<div class="relative z-10 w-5 h-5">
-						<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 20h16M7 20V4c0-.5.5-1 1-1h8c.5 0 1 .5 1 1v16" />
-							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 8h6m-3-5v5m-5 4h10v3H7v-3z" />
-						</svg>
-					</div>
-					<span class="font-semibold text-sm relative z-10">Pressing</span>
-					{#if $page.url.pathname === "/pressing"}
-						<span class="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-transparent -z-0"></span>
-						<span class="ml-auto w-1.5 h-1.5 rounded-full bg-indigo-600 shadow-sm"></span>
-					{/if}
-				</a>
-			{/if}
-
-			<!-- Divider -->
-			<div class="my-2 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent"></div>
-
-			<!-- User Info Card (Mobile) -->
-			<div class="md:hidden p-3 bg-gradient-to-br from-slate-100 to-slate-50 rounded-xl border border-slate-200">
-				<div class="flex items-center gap-2">
-					<div class="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-md flex-shrink-0 border border-white">
-						<span class="text-xs font-bold text-white">
-							{getInitials($auth.user?.name || '')}
-						</span>
-					</div>
-					<div class="flex-1 min-w-0">
-						<h3 class="font-bold text-slate-800 truncate text-xs">{$auth.user?.name}</h3>
-						<p class="text-[10px] text-slate-500 truncate">{$auth.user?.nik}</p>
+				<!-- User Info Card (Mobile) -->
+				<div class="md:hidden p-3 bg-gradient-to-br from-slate-100 to-slate-50 rounded-xl border border-slate-200">
+					<div class="flex items-center gap-2">
+						<div class="w-10 h-10 rounded-lg bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-md flex-shrink-0 border border-white">
+							<span class="text-xs font-bold text-white">
+								{getInitials($auth.user?.name || '')}
+							</span>
+						</div>
+						<div class="flex-1 min-w-0">
+							<h3 class="font-bold text-slate-800 truncate text-xs">{$auth.user?.name}</h3>
+							<p class="text-[10px] text-slate-500 truncate">{$auth.user?.nik}</p>
+						</div>
 					</div>
 				</div>
-			</div>
+			{/if}
 		</nav>
-
-		<!-- Logout Button -->
 		<div class="p-4 border-t border-slate-100/50 bg-gradient-to-t from-slate-50 to-transparent">
 			<button
 				onclick={handleLogout}

@@ -124,18 +124,12 @@
 </script>
 
 <div class="min-h-screen bg-white text-slate-800 pb-6 relative pt-16 md:pt-0">
-  
-  <!-- Header -->
-
   <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 space-y-6">
     
     <!-- Camera Section -->
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      
-      <!-- Video Feed -->
       <div class="lg:col-span-2">
         <div class="relative bg-black rounded-2xl overflow-hidden shadow-xl border-2 border-slate-200">
-          <!-- svelte-ignore element_invalid_self_closing_tag -->
           <video
             bind:this={videoElement}
             autoplay
