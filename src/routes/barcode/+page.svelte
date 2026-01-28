@@ -123,29 +123,9 @@
 
 </script>
 
-<div class="min-h-screen bg-white text-slate-800 pb-6 relative">
+<div class="min-h-screen bg-white text-slate-800 pb-6 relative pt-16 md:pt-0">
   
   <!-- Header -->
-  <header class="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-      <div class="flex items-center gap-3">
-        <!-- svelte-ignore a11y_consider_explicit_label -->
-        <button on:click={handleBack}
-          class="group p-2 hover:bg-slate-100 rounded-lg transition-colors">
-          <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <div>
-          <h1 class="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">Scan Barcode KPCP</h1>
-          <p class="text-xs md:text-sm text-slate-500">Arahkan kamera ke barcode atau QR code lot</p>
-        </div>
-      </div>
-      <div class="text-right">
-        <p class="text-sm text-slate-500">{new Date().toLocaleTimeString('id-ID')}</p>
-      </div>
-    </div>
-  </header>
 
   <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 space-y-6">
     

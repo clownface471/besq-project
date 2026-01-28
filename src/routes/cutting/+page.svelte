@@ -238,67 +238,6 @@
     style="background-image: radial-gradient(#4f46e5 1px, transparent 1px); background-size: 24px 24px;"
   ></div>
 
-  <header class="sticky top-0 md:static z-50 transition-all duration-300">
-    <div
-      class="bg-white/80 backdrop-blur-md md:bg-transparent border-b border-slate-200 md:border-none shadow-sm md:shadow-none"
-    >
-      <div
-        class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 flex justify-between items-center"
-      >
-        <div class="flex items-center gap-4">
-          <div
-            class="md:hidden w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-500/30"
-          >
-            D
-          </div>
-          <div>
-            <h1
-              class="text-xl md:text-3xl font-bold text-slate-800 md:text-white tracking-tight"
-            >
-              Dashboard Karyawan
-            </h1>
-            <div class="flex items-center gap-2 mt-1">
-              <span class="relative flex h-2 w-2 md:hidden">
-                <span
-                  class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"
-                ></span>
-                <span
-                  class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"
-                ></span>
-              </span>
-              <p class="text-xs text-slate-500 md:text-indigo-200 font-medium">
-                Selamat datang kembali, Semangat Bekerja!
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <button
-          onclick={handleLogout}
-          class="group relative overflow-hidden px-4 py-2 md:px-5 md:py-2.5 rounded-xl transition-all duration-300
-                       bg-white border border-slate-200 text-slate-600 hover:text-rose-600 hover:border-rose-200 hover:shadow-lg
-                       md:bg-white/10 md:border-white/20 md:text-white md:hover:bg-white/20"
-        >
-          <div class="flex items-center gap-2 relative z-10">
-            <span class="hidden md:inline text-sm font-semibold">Logout</span>
-            <svg
-              class="w-5 h-5 md:w-4 md:h-4 transition-transform group-hover:translate-x-1"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-              /></svg
-            >
-          </div>
-        </button>
-      </div>
-    </div>
-  </header>
-
   <main
     class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:-mt-24 relative z-10 space-y-6"
   >

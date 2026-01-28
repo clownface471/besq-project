@@ -53,7 +53,6 @@ func (dc *DashboardController) GetDashboardStats(c *gin.Context) {
 	mockActivities := []ActivityLog{
 		{User: "Budi", Action: "Cutting Batch A", Time: "10:45 AM", Status: "Completed"},
 		{User: "Ani", Action: "Pressing Batch C", Time: "11:02 AM", Status: "In Progress"},
-		{User: "Rina", Action: "Finishing Batch B", Time: "11:15 AM", Status: "Pending"},
 	}
 
 	// Create stats object with a mix of real and placeholder data as requested.
