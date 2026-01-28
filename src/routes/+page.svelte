@@ -17,7 +17,7 @@
 		activeShift: 'N/A',
 		cuttingOutput: 0,
 		pressingOutput: 0,
-		finishingOutput: 0,
+		finishingOutput: 0, 
 		activities: [] as { user: string; action: string; time: string; status: string }[]
 	});
 
@@ -25,7 +25,6 @@
 
 	// --- LIFECYCLE & EFFECTS ---
 	$effect(() => {
-		// Menggunakan $auth.isLoggedIn dari store
 		if ($auth.isLoggedIn) {
 			fetchStats();
 		}
@@ -113,7 +112,7 @@
 		}
 	}
 
-	// --- STATIC DATA ---
+	// --- STATIC DATA (HANYA PRESSING & CUTTING) ---
 	let deptSummary = [
 		{
 			id: 'pressing',
@@ -134,16 +133,6 @@
 			avgEfficiency: 95,
 			target: 2500,
 			color: 'blue'
-		},
-		{
-			id: 'finishing',
-			name: 'Finishing',
-			icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
-			totalStaff: 15,
-			activeNow: 14,
-			avgEfficiency: 92,
-			target: 1800,
-			color: 'emerald'
 		}
 	];
 
@@ -157,7 +146,6 @@
 	function getDeptOutput(deptId: string) {
 		if (deptId === 'pressing') return stats.pressingOutput;
 		if (deptId === 'cutting') return stats.cuttingOutput;
-		if (deptId === 'finishing') return stats.finishingOutput;
 		return 0;
 	}
 
@@ -191,31 +179,40 @@
 
 <div class="font-sans text-slate-800 bg-gray-100 min-h-screen">
 	{#if !$auth.isLoggedIn}
+		<!-- LOGIN PAGE - Responsive -->
 		<div class="min-h-screen flex items-center justify-center p-4">
-			<div class="border w-full max-w-sm overflow-hidden shadow-2xl bg-white rounded-3xl p-8 transition-all duration-500 hover:shadow-[0_20px_50px_rgba(0,0,0,0.2)]">
-				<div class="mb-8">
+			<div
+				class="border w-full max-w-md overflow-hidden shadow-xl bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 md:p-8 transition-all duration-300 hover:shadow-2xl"
+			>
+				<div class="mb-6 sm:mb-8">
 					<div class="flex justify-center mb-2">
-						<span class="bg-blue-100 text-[#0065F8] text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-widest">
+						<span
+							class="bg-blue-100 text-[#0065F8] text-xs sm:text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-widest"
+						>
 							Official Portal
 						</span>
 					</div>
-					<h1 class="font-bold text-2xl text-center text-gray-800 font-[Poppins] tracking-tight">
+					<h1 class="font-bold text-xl sm:text-2xl text-center text-gray-800 font-[Poppins] tracking-tight">
 						Besq User Login
 					</h1>
-					<div class="text-[#0065F8] text-7xl text-center mt-6 drop-shadow-md">
+					<div class="text-[#0065F8] text-5xl sm:text-6xl md:text-7xl text-center mt-4 sm:mt-6">
 						<i class="fas fa-circle-user text-blue-600"></i>
 					</div>
 				</div>
 
-				<form onsubmit={handleLogin} class="space-y-5">
+				<form onsubmit={handleLogin} class="space-y-4 sm:space-y-5">
 					{#if errorMessage}
-						<div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+						<div class="bg-red-50 border border-red-200 text-red-700 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg text-sm">
 							{errorMessage}
 						</div>
 					{/if}
 
 					<div>
-						<label for="nik" class="text-[11px] font-bold text-gray-400 uppercase tracking-widest ml-1">NIK</label>
+						<label
+							for="nik"
+							class="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1 block mb-1"
+							>NIK</label
+						>
 						<input
 							id="nik"
 							type="text"
@@ -223,12 +220,16 @@
 							bind:value={nik}
 							required
 							disabled={isLoading}
-							class="mt-1 border border-gray-100 bg-gray-50 rounded-xl w-full py-3 px-4 outline-none focus:bg-white focus:border-[#0065F8] focus:ring-4 focus:ring-blue-100 transition-all disabled:opacity-50"
+							class="w-full border border-gray-200 bg-gray-50 rounded-lg sm:rounded-xl py-2.5 sm:py-3 px-3 sm:px-4 outline-none focus:bg-white focus:border-[#0065F8] focus:ring-2 sm:focus:ring-4 focus:ring-blue-100 transition-all disabled:opacity-50 text-sm sm:text-base"
 						/>
 					</div>
 
 					<div>
-						<label for="password" class="text-[11px] font-bold text-gray-400 uppercase tracking-widest ml-1">Password</label>
+						<label
+							for="password"
+							class="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1 block mb-1"
+							>Password</label
+						>
 						<input
 							id="password"
 							type="password"
@@ -236,17 +237,19 @@
 							bind:value={password}
 							required
 							disabled={isLoading}
-							class="mt-1 border border-gray-100 bg-gray-50 rounded-xl w-full py-3 px-4 outline-none focus:bg-white focus:border-[#0065F8] focus:ring-4 focus:ring-blue-100 transition-all disabled:opacity-50"
+							class="w-full border border-gray-200 bg-gray-50 rounded-lg sm:rounded-xl py-2.5 sm:py-3 px-3 sm:px-4 outline-none focus:bg-white focus:border-[#0065F8] focus:ring-2 sm:focus:ring-4 focus:ring-blue-100 transition-all disabled:opacity-50 text-sm sm:text-base"
 						/>
 					</div>
 
 					<button
 						type="submit"
 						disabled={isLoading}
-						class="bg-[#0065F8] shadow-lg shadow-blue-300/50 transition-all duration-300 hover:bg-[#004bbd] hover:shadow-blue-400/50 hover:-translate-y-1 text-white font-bold py-3.5 px-4 rounded-xl w-full mt-8 flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+						class="bg-[#0065F8] shadow-lg shadow-blue-300/50 transition-all duration-300 hover:bg-[#004bbd] hover:shadow-blue-400/50 hover:-translate-y-0.5 text-white font-bold py-3 sm:py-3.5 px-4 rounded-xl w-full mt-6 sm:mt-8 flex justify-center items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
 					>
 						{#if isLoading}
-							<span class="animate-spin border-2 border-white border-t-transparent rounded-full h-5 w-5"></span>
+							<span
+								class="animate-spin border-2 border-white border-t-transparent rounded-full h-4 w-4 sm:h-5 sm:w-5"
+							></span>
 							<span>Logging in...</span>
 						{:else}
 							<span>Login</span>
@@ -256,93 +259,140 @@
 			</div>
 		</div>
 	{:else}
-		<div class="min-h-screen bg-slate-50 pb-12 relative">
-			<div class="absolute inset-0 z-0 opacity-[0.03] pointer-events-none" style="background-image: radial-gradient(#64748b 1px, transparent 1px); background-size: 24px 24px;"></div>
+		<!-- DASHBOARD PAGE - Responsive -->
+		<div class="min-h-screen bg-slate-50 pb-8 sm:pb-12 relative">
+			<div
+				class="absolute inset-0 z-0 opacity-[0.03] pointer-events-none"
+				style="background-image: radial-gradient(#64748b 1px, transparent 1px); background-size: 20px 20px;"
+			></div>
 
-			<main class="max-w-7xl mx-auto px-4 pt-6 space-y-6 relative z-10">
-				<div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row items-center justify-between gap-6">
-					<div class="flex items-center gap-5 w-full md:w-auto">
-						<img src="https://i.pravatar.cc/300?u={$auth.user?.nik}" alt="User Avatar" class="w-16 h-16 rounded-full object-cover border-2 border-white shadow-md ring-2 ring-slate-100" />
-						<div>
-							<h2 class="text-xl font-bold text-slate-800">Halo, {$auth.user?.name}!</h2>
-							<div class="flex items-center gap-2 text-sm text-slate-500 mt-1">
-								<span class="font-medium bg-slate-100 px-2 py-0.5 rounded text-slate-600">{$auth.user?.nik}</span>
-								<span>•</span>
-								<span class="capitalize">{$auth.user?.role}</span>
-								<button onclick={handleLogout} class="ml-4 text-rose-500 hover:underline font-bold">Logout</button>
+			<main class="max-w-7xl mx-auto px-3 sm:px-4 md:px-5 lg:px-6 xl:px-8 pt-4 sm:pt-6 space-y-4 sm:space-y-6 relative z-10">
+				<!-- Header Profile -->
+				<div
+					class="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5 md:p-6 flex flex-col md:flex-row items-center justify-between gap-4 sm:gap-6"
+				>
+					<div class="flex items-center gap-3 sm:gap-4 md:gap-5 w-full md:w-auto">
+						<img
+							src="https://i.pravatar.cc/300?u={$auth.user?.nik}"
+							alt="User Avatar"
+							class="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full object-cover border-2 border-white shadow-md ring-2 ring-slate-100"
+						/>
+						<div class="flex-1 min-w-0">
+							<h2 class="text-lg sm:text-xl font-bold text-slate-800 truncate">Halo, {$auth.user?.name}!</h2>
+							<div class="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-slate-500 mt-1">
+								<span class="font-medium bg-slate-100 px-1.5 sm:px-2 py-0.5 rounded text-slate-600 truncate"
+									>{$auth.user?.nik}</span
+								>
+								<span class="hidden sm:inline">•</span>
+								<span class="capitalize truncate">{$auth.user?.role}</span>
+								<button onclick={handleLogout} class="ml-1.5 sm:ml-3 md:ml-4 text-rose-500 hover:underline font-bold text-xs sm:text-sm"
+									>Logout</button
+								>
 							</div>
 						</div>
 					</div>
-					<div class="w-full md:w-auto flex flex-wrap items-center justify-center md:justify-end gap-6 border-t md:border-t-0 border-slate-100 pt-4 md:pt-0">
+
+					<div
+						class="w-full md:w-auto grid grid-cols-3 gap-3 sm:gap-4 md:gap-6 border-t md:border-t-0 border-slate-100 pt-3 sm:pt-4 md:pt-0"
+					>
 						<div class="text-center">
-							<p class="text-xs text-slate-400 font-bold uppercase tracking-wider">Total Output</p>
-							<p class="text-2xl font-bold text-slate-800">{stats.totalOutput.toLocaleString('id-ID')} <span class="text-sm font-normal text-slate-500">Lot</span></p>
+							<p class="text-[10px] xs:text-xs text-slate-400 font-bold uppercase tracking-wider truncate">Total Output</p>
+							<p class="text-lg sm:text-xl md:text-2xl font-bold text-slate-800 mt-0.5">
+								{stats.totalOutput.toLocaleString('id-ID')}
+								<span class="text-xs sm:text-sm font-normal text-slate-500">Lot</span>
+							</p>
 						</div>
 						<div class="text-center">
-							<p class="text-xs text-slate-400 font-bold uppercase tracking-wider">Tingkat Reject</p>
-							<p class="text-2xl font-bold text-rose-600">{stats.rejectRate}</p>
+							<p class="text-[10px] xs:text-xs text-slate-400 font-bold uppercase tracking-wider truncate">Tingkat Reject</p>
+							<p class="text-lg sm:text-xl md:text-2xl font-bold text-rose-600 mt-0.5">{stats.rejectRate}</p>
 						</div>
 						<div class="text-center">
-							<p class="text-xs text-slate-400 font-bold uppercase tracking-wider">Shift Aktif</p>
-							<p class="text-2xl font-bold text-blue-600">{stats.activeShift}</p>
+							<p class="text-[10px] xs:text-xs text-slate-400 font-bold uppercase tracking-wider truncate">Shift Aktif</p>
+							<p class="text-lg sm:text-xl md:text-2xl font-bold text-blue-600 mt-0.5">{stats.activeShift}</p>
 						</div>
 					</div>
 				</div>
 
-				<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+				<!-- Department Cards -->
+				<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 md:gap-6">
 					{#each deptSummary as dept}
 						{@const actual = getDeptOutput(dept.id)}
-						<div class={`rounded-2xl p-6 border transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${getCardColor(dept.color)}`}>
-							<div class="flex justify-between items-start mb-4">
-								<div class={`p-3 rounded-xl ${getIconBg(dept.color)}`}>
-									<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={dept.icon} />
+						<div
+							class={`rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 border transition-all duration-300 hover:shadow-md sm:hover:shadow-lg hover:-translate-y-0.5 sm:hover:-translate-y-1 ${getCardColor(dept.color)}`}
+						>
+							<div class="flex justify-between items-start mb-3 sm:mb-4">
+								<div class={`p-2 sm:p-3 rounded-lg sm:rounded-xl ${getIconBg(dept.color)}`}>
+									<svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path
+											stroke-linecap="round"
+											stroke-linejoin="round"
+											stroke-width="2"
+											d={dept.icon}
+										/>
 									</svg>
 								</div>
 								<div class="text-right">
-									<span class="block text-2xl font-bold">{dept.avgEfficiency}%</span>
+									<span class="block text-xl sm:text-2xl font-bold">{dept.avgEfficiency}%</span>
 									<span class="text-xs font-semibold opacity-70">Efisiensi</span>
 								</div>
 							</div>
-							<h3 class="text-lg font-bold mb-1">{dept.name}</h3>
-							<div class="space-y-3 mt-4">
+							<h3 class="text-base sm:text-lg font-bold mb-1">{dept.name}</h3>
+							<div class="space-y-2 sm:space-y-3 mt-3 sm:mt-4">
 								<div class="flex justify-between text-xs font-bold uppercase opacity-60">
 									<span>Progress Lot</span>
 									<span>{actual} / {dept.target}</span>
 								</div>
-								<div class="w-full h-2 bg-white/50 rounded-full overflow-hidden">
-									<div class={`h-full rounded-full ${getBarColor(dept.color)}`} style={`width: ${Math.min((actual / dept.target) * 100, 100)}%`}></div>
+								<div class="w-full h-1.5 sm:h-2 bg-white/50 rounded-full overflow-hidden">
+									<div
+										class={`h-full rounded-full ${getBarColor(dept.color)}`}
+										style={`width: ${Math.min((actual / dept.target) * 100, 100)}%`}
+									></div>
 								</div>
 							</div>
 						</div>
 					{/each}
 				</div>
 
-				<div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-					<div class="p-6 border-b border-slate-100">
-						<h3 class="font-bold text-slate-800 text-lg">Live Floor Activity</h3>
+				<!-- Activity Table -->
+				<div class="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+					<div class="p-4 sm:p-5 md:p-6 border-b border-slate-100">
+						<h3 class="font-bold text-slate-800 text-base sm:text-lg">Live Floor Activity</h3>
 					</div>
-					<div class="overflow-x-auto">
-						<table class="w-full text-left border-collapse">
+					<div class="overflow-x-auto -mx-2 sm:-mx-0">
+						<table class="w-full text-left border-collapse min-w-[600px]">
 							<thead>
 								<tr class="bg-slate-50/50 border-b border-slate-100">
-									<th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase">User</th>
-									<th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase">Action</th>
-									<th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase text-center">Time</th>
-									<th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase text-center">Status</th>
+									<th class="px-3 sm:px-4 md:px-6 py-3 text-xs font-bold text-slate-400 uppercase">User</th>
+									<th class="px-3 sm:px-4 md:px-6 py-3 text-xs font-bold text-slate-400 uppercase">Action</th>
+									<th class="px-3 sm:px-4 md:px-6 py-3 text-xs font-bold text-slate-400 uppercase text-center"
+										>Time</th
+									>
+									<th class="px-3 sm:px-4 md:px-6 py-3 text-xs font-bold text-slate-400 uppercase text-center"
+										>Status</th
+									>
 								</tr>
 							</thead>
 							<tbody class="divide-y divide-slate-100">
 								{#if stats.activities.length === 0}
-									<tr><td colspan="4" class="text-center py-12 text-slate-500">Belum ada aktivitas.</td></tr>
+									<tr>
+										<td colspan="4" class="text-center py-8 sm:py-12 text-slate-500 text-sm sm:text-base"
+											>Belum ada aktivitas.</td
+										>
+									</tr>
 								{:else}
 									{#each stats.activities as activity}
 										<tr class="hover:bg-slate-50 transition-colors">
-											<td class="px-6 py-4 font-bold text-sm">{activity.user}</td>
-											<td class="px-6 py-4 text-sm">{activity.action}</td>
-											<td class="px-6 py-4 text-center text-sm text-slate-500">{activity.time}</td>
-											<td class="px-6 py-4 text-center">
-												<span class={`px-2 py-1 rounded-md text-xs font-bold uppercase ring-1 ${getStatusColor(activity.status)}`}>
+											<td class="px-3 sm:px-4 md:px-6 py-3 font-bold text-sm whitespace-nowrap"
+												>{activity.user}</td
+											>
+											<td class="px-3 sm:px-4 md:px-6 py-3 text-sm">{activity.action}</td>
+											<td class="px-3 sm:px-4 md:px-6 py-3 text-center text-sm text-slate-500 whitespace-nowrap"
+												>{activity.time}</td
+											>
+											<td class="px-3 sm:px-4 md:px-6 py-3 text-center whitespace-nowrap">
+												<span
+													class={`px-2 py-1 rounded-md text-xs font-bold uppercase ring-1 ${getStatusColor(activity.status)}`}
+												>
 													{activity.status}
 												</span>
 											</td>
@@ -359,6 +409,35 @@
 </div>
 
 <style>
-	.overflow-x-auto::-webkit-scrollbar { height: 8px; }
-	.overflow-x-auto::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 20px; }
+	/* Custom Scrollbar */
+	.overflow-x-auto::-webkit-scrollbar {
+		height: 6px;
+	}
+	.overflow-x-auto::-webkit-scrollbar-track {
+		background: #f1f5f9;
+		border-radius: 10px;
+	}
+	.overflow-x-auto::-webkit-scrollbar-thumb {
+		background-color: #cbd5e1;
+		border-radius: 10px;
+	}
+	.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+		background-color: #94a3b8;
+	}
+	
+	/* Responsive Font Sizes */
+	@media (max-width: 640px) {
+		.min-w-0 {
+			min-width: 0;
+		}
+	}
+	
+	/* Touch-friendly targets */
+	@media (max-width: 768px) {
+		button, 
+		input, 
+		[role="button"] {
+			min-height: 44px;
+		}
+	}
 </style>
