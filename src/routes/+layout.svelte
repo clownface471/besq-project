@@ -12,6 +12,11 @@
 	let sidebarOpen = $state(false);
 	let isMobile = $state(false);
 
+	const hideSidebarRoutes = ['/oprator']; 
+
+	// Logika: Tampilkan sidebar hanya jika login DAN bukan di halaman yang dikecualikan
+	let showSidebar = $derived($auth.isLoggedIn && !hideSidebarRoutes.includes($page.url.pathname));
+
 	const routePermissions: Record<string, string[]> = {
 		"/karyawan": ["admin"],
 		"/cutting": ["admin", "cutting"],
@@ -59,6 +64,16 @@
 
 		if (!isLoggedIn && pathname !== '/') {
 			goto('/');
+			return;
+		}
+
+		// Redirect based on role setelah login
+		if (isLoggedIn && user && pathname === '/') {
+			if (user.role === 'admin') {
+				goto('/admin');
+			} else if (user.role === 'cutting' || user.role === 'pressing') {
+				goto('/oprator');
+			}
 			return;
 		}
 
@@ -124,7 +139,7 @@
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </svelte:head>
 
-{#if $auth.isLoggedIn} 
+{#if showSidebar} 
 	<div class="md:hidden fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-b border-slate-100 shadow-md z-50 px-4 py-3">
 		<div class="flex items-center justify-between">
 			<div class="flex items-center gap-3">
@@ -207,7 +222,7 @@
 
 		<!-- Navigation -->
 		<nav class="flex-1 p-4 space-y-1.5 overflow-y-auto">
-			{#if $auth.isLoggedIn}
+			{#if showSidebar}
 				{#if $auth.user && $auth.user.role === "admin"}
 					<a
 						href="/admin"
@@ -321,20 +336,17 @@
 			</button>
 		</div>
 	</aside>
+	{/if}
 
 	<!-- Main Content -->
 	<div class="min-h-screen bg-slate-50 transition-all duration-300"
-		class:md:ml-64={!isMobile}
-		class:pt-16={isMobile}
-	>
-		<div class="p-4 sm:p-5 md:p-6">
-			{@render children()}
-		</div>
+	class:md:ml-64={!isMobile && showSidebar} 
+	class:pt-16={isMobile && showSidebar}
+>
+	<div class={showSidebar ? "p-4 sm:p-5 md:p-6" : "p-0"}>
+        {@render children()}
+    </div>
 	</div>
-{:else}
-	{@render children()}
-{/if}
-
 <style>
 	aside nav::-webkit-scrollbar {
 		width: 6px;

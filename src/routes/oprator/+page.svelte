@@ -19,7 +19,6 @@
 </script>
 
 <div class="container">
-	<!-- Profile Section -->
 	<div class="profile-section">
 		<div class="profile-left">
 			<img src={employee.avatar} alt={employee.name} class="avatar" />
@@ -65,7 +64,6 @@
 		</div>
 	</div>
 
-	<!-- Main Content -->
 	<div class="main-content">
 		<div class="boxes-wrapper">
 			<div class="boxes-grid">
@@ -80,7 +78,6 @@
 					</div>
 					<p class="box-label">Cutting</p>
 				</div>
-
 				<div class="connector-line"></div>
 
 				<div class="box-wrapper">
@@ -102,8 +99,11 @@
 <style>
 	.container {
 		min-height: 100vh;
+		width: 100%;
 		background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
 		padding: 2rem;
+		display: flex;
+		flex-direction: column;
 	}
 
 	/* Profile Section */
@@ -389,7 +389,8 @@
 
 	@media (max-width: 768px) {
 		.container {
-			padding: 0.8rem;
+			padding: 0;
+			min-height: 100vh;
 		}
 
 		.profile-section {
@@ -506,7 +507,8 @@
 
 	@media (max-width: 480px) {
 		.container {
-			padding: 0.6rem;
+			padding: 0;
+			min-height: 100vh;
 		}
 
 		.profile-section {
@@ -613,7 +615,8 @@
 
 	@media (max-width: 360px) {
 		.container {
-			padding: 0.4rem;
+			padding: 0;
+			min-height: 100vh;
 		}
 
 		.profile-section {
@@ -638,7 +641,6 @@
 		.box {
 			padding: 0.8rem 0.6rem;
 		}
-
 		.box-icon {
 			width: 45px;
 			height: 45px;
@@ -647,7 +649,6 @@
 		.connector-line {
 			height: 35px;
 		}
-
 		.connector-line::after {
 			border-left: 5px solid transparent;
 			border-right: 5px solid transparent;
