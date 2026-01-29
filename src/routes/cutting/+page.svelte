@@ -89,6 +89,50 @@
     },
   ]);
 
+  // ===== LHC (Laporan Hasil Cutting) State =====
+  let lhcData = $state({
+    operatorName: "Tono Widiyanto",
+    nik: "KRTP-2023-0456",
+    tanggal: new Date().toLocaleDateString("id-ID"),
+    shift: "I",
+  });
+
+  let cuttingDetails = $state<any[]>([
+    {
+      id: 1,
+      kode: "PROD-001",
+      compound: "A1",
+      noLot: "KPCP-2309-A01",
+      noPgc: "PGC-2309-001",
+      waktuMulai: "10:30",
+      waktuSelesai: "11:15",
+      qty: 120,
+      reject: 5,
+    },
+    {
+      id: 2,
+      kode: "PROD-002",
+      compound: "B2",
+      noLot: "KPCP-2309-A02",
+      noPgc: "PGC-2309-002",
+      waktuMulai: "10:15",
+      waktuSelesai: "11:00",
+      qty: 100,
+      reject: 3,
+    },
+    {
+      id: 3,
+      kode: "PROD-001",
+      compound: "A1",
+      noLot: "KPCP-2309-B05",
+      noPgc: "PGC-2309-003",
+      waktuMulai: "09:45",
+      waktuSelesai: "10:30",
+      qty: 150,
+      reject: 8,
+    },
+  ]);
+
   // Logic untuk Bar Chart Scale
   const maxChartValue = Math.max(
     ...dailyCompounds.map((d) => d.actual),
@@ -199,6 +243,26 @@
     }
   }
 
+  function handleScanKPCP() {
+    window.location.href = "/barcode-ctng";
+  }
+
+  // Add new cutting entry from barcode scan
+  function addCuttingEntry(scanData: any) {
+    const newEntry = {
+      id: cuttingDetails.length + 1,
+      kode: scanData.kode || "",
+      compound: scanData.compound || "",
+      noLot: scanData.noLot || "",
+      noPgc: scanData.noPgc || "",
+      waktuMulai: scanData.waktuMulai || "",
+      waktuSelesai: scanData.waktuSelesai || "",
+      qty: scanData.qty || 0,
+      reject: scanData.reject || 0,
+    };
+    cuttingDetails = [...cuttingDetails, newEntry];
+  }
+
   function getEfficiencyColor(efficiency: number) {
     if (efficiency >= 100)
       return "text-emerald-600 bg-emerald-50 border-emerald-100";
@@ -218,10 +282,6 @@
     if (status === "Selesai")
       return "bg-slate-100 text-slate-600 border-slate-200";
     return "bg-amber-50 text-amber-700 border-amber-100";
-  }
-
-  function handleRowClick() {
-    window.location.href = "/barcode";
   }
 
   // Load data on mount
@@ -591,6 +651,174 @@
     <div
       class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 lg:p-8"
     >
+      <div class="mb-8">
+        <h3 class="font-bold text-slate-800 text-lg mb-6 flex items-center gap-2">
+          <svg
+            class="w-6 h-6 text-emerald-500"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            ><path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+            /></svg
+            >
+          LAPORAN HASIL CUTTING (LHC)
+        </h3>
+
+        <!-- Header Info Operator -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 p-4 md:p-6 bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl border border-slate-200">
+          <div>
+            <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
+              Nama Operator
+            </label>
+            <input
+              type="text"
+              bind:value={lhcData.operatorName}
+              class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              disabled
+            />
+          </div>
+
+          <div>
+            <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
+              NIK
+            </label>
+            <input
+              type="text"
+              bind:value={lhcData.nik}
+              class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              disabled
+            />
+          </div>
+
+          <div>
+            <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
+              Tanggal
+            </label>
+            <input
+              type="text"
+              bind:value={lhcData.tanggal}
+              class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              disabled
+            />
+          </div>
+
+          <div>
+            <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
+              Shift
+            </label>
+            <input
+              type="text"
+              bind:value={lhcData.shift}
+              class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              disabled
+            />
+          </div>
+        </div>
+
+        <!-- Cutting Details Table -->
+        <div class="overflow-x-auto rounded-xl border border-slate-200">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white">
+                <th class="px-4 py-3 font-bold text-sm">No.</th>
+                <th class="px-4 py-3 font-bold text-sm">Kode Produk</th>
+                <th class="px-4 py-3 font-bold text-sm">Compound</th>
+                <th class="px-4 py-3 font-bold text-sm">No. Lot</th>
+                <th class="px-4 py-3 font-bold text-sm">No. PGC</th>
+                <th class="px-4 py-3 font-bold text-sm">Waktu Mulai</th>
+                <th class="px-4 py-3 font-bold text-sm">Waktu Selesai</th>
+                <th class="px-4 py-3 font-bold text-sm text-right">Qty</th>
+                <th class="px-4 py-3 font-bold text-sm text-right">Reject</th>
+              </tr>
+            </thead>
+            <tbody class="text-sm divide-y divide-slate-200">
+              {#each cuttingDetails as detail, index}
+                <tr class="hover:bg-slate-50 transition-colors">
+                  <td class="px-4 py-3 font-bold text-slate-800">
+                    {index + 1}
+                  </td>
+                  <td class="px-4 py-3 font-mono font-bold text-slate-700">
+                    {detail.kode}
+                  </td>
+                  <td class="px-4 py-3 font-bold text-slate-700">
+                    {detail.compound}
+                  </td>
+                  <td class="px-4 py-3 font-mono text-slate-700 text-indigo-600 font-bold">
+                    {detail.noLot}
+                  </td>
+                  <td class="px-4 py-3 font-mono text-slate-600">
+                    {detail.noPgc}
+                  </td>
+                  <td class="px-4 py-3 text-slate-700 font-medium">
+                    {detail.waktuMulai}
+                  </td>
+                  <td class="px-4 py-3 text-slate-700 font-medium">
+                    {detail.waktuSelesai}
+                  </td>
+                  <td class="px-4 py-3 text-right font-bold text-slate-800">
+                    {detail.qty}
+                  </td>
+                  <td class="px-4 py-3 text-right font-bold text-rose-600">
+                    {detail.reject}
+                  </td>
+                </tr>
+              {/each}
+
+              {#if cuttingDetails.length === 0}
+                <tr>
+                  <td colspan="9" class="px-4 py-8 text-center text-slate-400">
+                    Belum ada data cutting. Scan KPCP untuk menambahkan data.
+                  </td>
+                </tr>
+              {/if}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Summary Footer -->
+        <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div class="p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <p class="text-xs text-blue-600 font-bold uppercase">Total Qty</p>
+            <p class="text-xl font-bold text-blue-700">
+              {cuttingDetails.reduce((sum, item) => sum + item.qty, 0)}
+            </p>
+          </div>
+          <div class="p-3 bg-rose-50 rounded-lg border border-rose-200">
+            <p class="text-xs text-rose-600 font-bold uppercase">Total Reject</p>
+            <p class="text-xl font-bold text-rose-700">
+              {cuttingDetails.reduce((sum, item) => sum + item.reject, 0)}
+            </p>
+          </div>
+          <div class="p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+            <p class="text-xs text-emerald-600 font-bold uppercase">Total Good</p>
+            <p class="text-xl font-bold text-emerald-700">
+              {cuttingDetails.reduce((sum, item) => sum + (item.qty - item.reject), 0)}
+            </p>
+          </div>
+          <div class="p-3 bg-amber-50 rounded-lg border border-amber-200">
+            <p class="text-xs text-amber-600 font-bold uppercase">Efisiensi</p>
+            <p class="text-xl font-bold text-amber-700">
+              {cuttingDetails.length > 0
+                ? (
+                    ((cuttingDetails.reduce((sum, item) => sum + (item.qty - item.reject), 0) /
+                      cuttingDetails.reduce((sum, item) => sum + item.qty, 0)) *
+                      100) ||
+                    0
+                  ).toFixed(1)
+                : 0}%
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 lg:p-8"
+    >
       <div
         class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4"
       >
@@ -616,20 +844,34 @@
             Antrian Scan KPCP
           </h3>
           <p class="text-sm text-slate-500">
-            Daftar lot yang baru saja discan dan diproses. Klik untuk scan lot
-            baru.
+            Daftar lot yang baru saja discan dan diproses. Klik tombol di bawah untuk scan lot baru.
           </p>
         </div>
+        <button
+          onclick={handleScanKPCP}
+          class="flex items-center gap-2 px-4 md:px-6 py-3 md:py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-bold rounded-xl hover:from-indigo-700 hover:to-indigo-800 transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 whitespace-nowrap text-sm md:text-base"
+        >
+          <svg
+            class="w-5 h-5 md:w-5 md:h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            ><path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 4v16m8-8H4"
+            /></svg
+          >
+          Scan KPCP Baru
+        </button>
       </div>
 
       <!-- Mobile View (Card Layout) -->
       <div class="md:hidden space-y-3">
         {#each recentScans as scan}
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div
-            class="p-4 border border-slate-100 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
-            onclick={handleRowClick}
+            class="p-4 border border-slate-100 rounded-lg bg-slate-50 transition-colors"
           >
             <div class="flex justify-between items-start mb-3">
               <span class="font-mono font-bold text-indigo-600">{scan.lot}</span
@@ -684,11 +926,10 @@
           <tbody class="text-sm">
             {#each recentScans as scan}
               <tr
-                class="group hover:bg-slate-50 transition-colors border-b last:border-0 border-slate-50 cursor-pointer"
-                onclick={handleRowClick}
+                class="group hover:bg-slate-50 transition-colors border-b last:border-0 border-slate-50"
               >
                 <td
-                  class="py-4 font-mono font-bold text-slate-700 group-hover:text-indigo-600 transition-colors"
+                  class="py-4 font-mono font-bold text-slate-700"
                 >
                   {scan.lot}
                 </td>
@@ -727,85 +968,11 @@
           </tbody>
         </table>
       </div>
-
-      <div class="mt-4 pt-2 border-t border-slate-50 text-center md:text-left">
-        <a
-          href="/history"
-          class="text-sm text-indigo-600 font-semibold hover:text-indigo-800 transition-colors"
-          >Lihat Riwayat Lengkap &rarr;</a
-        >
-      </div>
-    </div>
-
-    <!-- Permintaan Tim Press Table -->
-    <div
-      class="mt-8 bg-white rounded-2xl border-2 border-amber-100 shadow-sm overflow-hidden"
-    >
-      <div class="bg-amber-50 px-6 py-4 border-b border-amber-100">
-        <h3 class="font-bold text-slate-800 text-lg">
-          Permintaan Tim Press
-        </h3>
-      </div>
-
-      <div class="p-6">
-        {#if pressRequests.length > 0}
-          <div class="grid grid-cols-1 gap-4">
-            {#each pressRequests as request}
-              <div
-                class="p-4 rounded-lg bg-slate-50 border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center gap-4"
-              >
-                <div class="flex-1 min-w-0">
-                  <p class="text-sm text-slate-500 truncate">
-                    No. Lot:{" "}
-                    <span class="font-mono font-semibold text-slate-800"
-                      >{request.lotNo}</span
-                    >
-                  </p>
-                  <p class="text-sm text-slate-500 truncate">
-                    Qty:{" "}
-                    <span class="font-mono font-semibold text-slate-800"
-                      >{request.qty}</span
-                    >
-                  </p>
-                  <p class="text-sm text-slate-500 truncate">
-                    Status:{" "}
-                    <span
-                      class={`font-mono font-semibold ${getStatusColor(
-                        request.status
-                      )}`}
-                      >{request.status}</span
-                    >
-                  </p>
-                  <p class="text-sm text-slate-500 truncate">
-                    Note:{" "}
-                    <span class="font-mono font-semibold text-slate-800"
-                      >{request.note}</span
-                    >
-                  </p>
-                </div>
-                <div>
-                  <button
-                    class="px-4 py-2 text-sm font-semibold rounded-lg bg-indigo-600 text-white shadow-md hover:bg-indigo-700 transition-all duration-300"
-                  >
-                    Proses
-                  </button>
-                </div>
-              </div>
-            {/each}
-          </div>
-        {:else}
-          <div class="py-4 text-center text-slate-400">
-            Belum ada permintaan tim press.
-          </div>
-        {/if}
-      </div>
     </div>
   </main>
 </div>
 
 <style>
-  /* Hanya utility sederhana, layout responsive ditangani oleh Tailwind Classes */
-  /* Hide Scrollbar for cleaner look */
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }

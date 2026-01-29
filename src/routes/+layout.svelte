@@ -124,8 +124,7 @@
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </svelte:head>
 
-{#if $auth.isLoggedIn}
-	<!-- Mobile Header -->
+{#if $auth.isLoggedIn} 
 	<div class="md:hidden fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-xl border-b border-slate-100 shadow-md z-50 px-4 py-3">
 		<div class="flex items-center justify-between">
 			<div class="flex items-center gap-3">
