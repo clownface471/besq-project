@@ -145,6 +145,25 @@
 
   let isLwpFormOpen = $state(false);
 
+  // Tambah state untuk status mesin (NoMesin, Item, NoLot, Operator)
+  let machineStatuses = $state<any[]>([]);
+
+  // Fungsi untuk membangun machineStatuses dari lwpRecords
+  function updateMachineStatuses() {
+    machineStatuses = lwpRecords.map((m: any) => {
+      const latestDetail = m.details && m.details.length ? m.details[m.details.length - 1] : null;
+      return {
+        noMesin: m.noMesin || "-",
+        item: m.partName || "-",
+        noLot: latestDetail ? latestDetail.noLot : "-",
+        operator: m.nik || "-",
+      };
+    });
+  }
+
+  // panggil setelah inisialisasi data awal
+  updateMachineStatuses();
+
   // Logic untuk Bar Chart Scale
   const maxChartValue = Math.max(
     ...dailyCompounds.map((d) => d.actual),
@@ -179,6 +198,12 @@
       const data = await response.json();
       recentScans = data.scans || recentScans;
       monthlyData = data.stats || monthlyData;
+      // jika API mengembalikan LWP, update lwpRecords
+      if (data.lwpRecords) {
+        lwpRecords = data.lwpRecords;
+      }
+      // update machineStatuses setiap kali data LWP/records berubah
+      updateMachineStatuses();
     } catch (error) {
       errorMessage =
         error instanceof Error ? error.message : "An error occurred";
@@ -562,6 +587,45 @@
       </div>
     </div>
 
+    <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 lg:p-8 mb-6">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h3 class="font-bold text-slate-800 text-lg">Status Mesin</h3>
+          <p class="text-sm text-slate-500">Ringkasan pekerjaan saat ini per mesin</p>
+        </div>
+        <button onclick={loadData} class="text-xs bg-slate-100 px-3 py-1 rounded-md text-slate-600">Refresh</button>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead>
+            <tr class="bg-slate-100 border-y border-slate-200">
+              <th class="px-4 py-3 font-semibold text-slate-600 text-xs uppercase">No. Mesin</th>
+              <th class="px-4 py-3 font-semibold text-slate-600 text-xs uppercase">Item</th>
+              <th class="px-4 py-3 font-semibold text-slate-600 text-xs uppercase">No. Lot</th>
+              <th class="px-4 py-3 font-semibold text-slate-600 text-xs uppercase">Operator</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {#each machineStatuses as ms}
+              <tr class="hover:bg-slate-50 transition-colors">
+                <td class="px-4 py-3 font-mono font-bold text-indigo-600">{ms.noMesin}</td>
+                <td class="px-4 py-3">{ms.item}</td>
+                <td class="px-4 py-3 font-mono text-slate-700">{ms.noLot}</td>
+                <td class="px-4 py-3">{ms.operator}</td>
+              </tr>
+            {/each}
+
+            {#if machineStatuses.length === 0}
+              <tr>
+                <td colspan="4" class="px-4 py-6 text-center text-slate-400 italic">Belum ada status mesin.</td>
+              </tr>
+            {/if}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div
         class="bg-white rounded-3xl p-6 lg:p-8 shadow-sm border border-slate-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col h-full"
@@ -862,7 +926,6 @@
                   </tbody>
                 </table>
               </div>
-
               <!-- Summary Stats -->
               <div class="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
                 <div class="text-center">
