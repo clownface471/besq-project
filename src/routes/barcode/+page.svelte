@@ -86,7 +86,7 @@
     if (scannedData.trim()) {
       const currentTime = new Date().toLocaleTimeString('id-ID');
       
-      // Simpan data ke localStorage sebelum redirect
+      // Simpan data ke localStorage sebelum redirect 
       localStorage.setItem('selectedLot', scannedData);
       localStorage.setItem('scanTime', currentTime);
       
@@ -103,7 +103,7 @@
 
   function handleBack() {
     stopCamera();
-    window.location.href = '/karyawan';
+    window.location.href = '/cutting';
   }
 
   onMount(() => {
@@ -119,7 +119,6 @@
       stopCamera();
     };
   });
-
 
 </script>
 

@@ -103,7 +103,7 @@
 
   function handleBack() {
     stopCamera();
-    window.location.href = '/karyawan';
+    window.location.href = '/pressing';
   }
 
   onMount(() => {

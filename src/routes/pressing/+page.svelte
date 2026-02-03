@@ -299,6 +299,54 @@
     </div>
   </header>
 
+  <div
+    class="fixed bottom-6 right-6 md:bottom-auto md:top-1/2 md:right-0 md:-translate-y-1/2 z-[100]"
+  >
+    <button
+      onclick={() => (window.location.href = "/scan")}
+      class="md:hidden w-16 h-16 bg-indigo-600 rounded-full shadow-2xl flex items-center justify-center text-white active:scale-95 transition-transform border-4 border-white"
+    >
+      <svg
+        class="w-8 h-8"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
+        />
+      </svg>
+    </button>
+
+    <button
+      onclick={() => (window.location.href = "/scan")}
+      class="hidden md:flex items-center gap-3 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-4 rounded-l-2xl shadow-xl transition-all duration-300 hover:pr-10 group"
+    >
+      <svg
+        class="w-6 h-6 animate-pulse"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
+        />
+      </svg>
+      <div class="text-left">
+        <p class="text-xs font-bold uppercase tracking-widest opacity-70">
+          Sistem
+        </p>
+        <p class="font-bold">Scan Machine</p>
+      </div>
+    </button>
+  </div>
+
   <main
     class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:-mt-24 relative z-10 space-y-6"
   >
