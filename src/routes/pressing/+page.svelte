@@ -397,7 +397,6 @@
     style="background-image: radial-gradient(#4f46e5 1px, transparent 1px); background-size: 24px 24px;"
   ></div>
 
-<<<<<<< HEAD
   <header class="sticky top-0 md:static z-50 transition-all duration-300">
     <div
       class="bg-white/80 backdrop-blur-md md:bg-transparent border-b border-slate-200 md:border-none shadow-sm md:shadow-none"
