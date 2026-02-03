@@ -595,7 +595,6 @@
         </div>
         <button onclick={loadData} class="text-xs bg-slate-100 px-3 py-1 rounded-md text-slate-600">Refresh</button>
       </div>
-
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm">
           <thead>
@@ -615,7 +614,6 @@
                 <td class="px-4 py-3">{ms.operator}</td>
               </tr>
             {/each}
-
             {#if machineStatuses.length === 0}
               <tr>
                 <td colspan="4" class="px-4 py-6 text-center text-slate-400 italic">Belum ada status mesin.</td>
