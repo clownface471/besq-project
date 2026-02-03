@@ -623,7 +623,6 @@
         </table>
       </div>
     </div>
-
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div
         class="bg-white rounded-3xl p-6 lg:p-8 shadow-sm border border-slate-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col h-full"
