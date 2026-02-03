@@ -48,7 +48,7 @@
           icon: 'success',
           confirmButtonColor: '#4f46e5'
         }).then(() => {
-          window.location.href = '/cutting';
+          window.location.href = '/pressing';
         });
       }
     });
