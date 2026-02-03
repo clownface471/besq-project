@@ -28,11 +28,9 @@
     lotNumber = queryParams.get('lot') || '';
     scanTime = localStorage.getItem('scanTime') || new Date().toLocaleTimeString('id-ID');
     
-    // Set data detail berdasarkan lot
     lotDetail.lot = lotNumber;
     lotDetail.startTime = scanTime;
     
-    // Hitung estimated end (misal 1 jam dari sekarang)
     const endDate = new Date();
     endDate.setHours(endDate.getHours() + 1);
     lotDetail.estimatedEnd = endDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
