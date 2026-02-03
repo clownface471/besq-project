@@ -34,7 +34,7 @@
     reject: "",
   });
 
-  const employee = {
+  let employee = {
     name: "Tono Widiyanto",
     position: "Senior Cutting Specialist",
     department: "Production - Cutting",
@@ -88,6 +88,62 @@
       pic: "Tono W.",
     },
   ]);
+
+  // ===== LWP (Laporan Waktu Produksi) Data =====
+  let lwpRecords = $state<any[]>([
+    {
+      id: 1,
+      noMesin: "PRESS-01",
+      tanggal: "2024-01-15",
+      shift: "I",
+      nik: "KRTP-2023-0456",
+      partName: "Part A1",
+      kodePart: "PA-001",
+      targetShift: 100,
+      details: [
+        {
+          id: 1,
+          noLot: "LOT-2024-001",
+          jamMulai: "07:00",
+          jamSelesai: "08:30",
+          hasilOk: 95,
+          ng: 5,
+          klasifikasiReject: [
+            { jenis: "Cacat Permukaan", qty: 3 },
+            { jenis: "Dimensi", qty: 2 }
+          ],
+        },
+        {
+          id: 2,
+          noLot: "LOT-2024-002",
+          jamMulai: "08:45",
+          jamSelesai: "10:15",
+          hasilOk: 102,
+          ng: 3,
+          klasifikasiReject: [
+            { jenis: "Goresan", qty: 3 }
+          ],
+        },
+      ],
+    },
+  ]);
+
+  // Form state untuk tambah LWP record
+  let lwpFormData = $state({
+    noMesin: "",
+    tanggal: new Date().toISOString().split('T')[0],
+    shift: "I",
+    nik: employee.nik,
+    partName: "",
+    kodePart: "",
+    jamMulai: "",
+    jamSelesai: "",
+    hasilOk: "",
+    ng: "",
+    klasifikasiReject: "Cacat Permukaan",
+  });
+
+  let isLwpFormOpen = $state(false);
 
   // Logic untuk Bar Chart Scale
   const maxChartValue = Math.max(
@@ -193,6 +249,96 @@
     }
   }
 
+  // Handle LWP form submission
+  async function handleLwpSubmit(e?: Event) {
+    if (e) {
+      e.preventDefault();
+    }
+
+    errorMessage = "";
+    successMessage = "";
+
+    // Validation
+    if (!lwpFormData.noMesin.trim() || !lwpFormData.partName.trim() || !lwpFormData.hasilOk.trim()) {
+      errorMessage = "No Mesin, Part Name, dan Hasil OK harus diisi";
+      return;
+    }
+
+    try {
+      const authToken = get(auth).token;
+      if (!authToken) {
+        errorMessage = "No authentication token found";
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/api/lwp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify(lwpFormData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to submit LWP data");
+      }
+
+      successMessage = "Data LWP berhasil disimpan!";
+
+      // Reset form
+      lwpFormData = {
+        noMesin: "",
+        tanggal: new Date().toISOString().split('T')[0],
+        shift: "I",
+        nik: employee.nik,
+        partName: "",
+        kodePart: "",
+        jamMulai: "",
+        jamSelesai: "",
+        hasilOk: "",
+        ng: "",
+        klasifikasiReject: "Cacat Permukaan",
+      };
+      isLwpFormOpen = false;
+
+      // Reload data
+      await loadData();
+
+      setTimeout(() => {
+        successMessage = "";
+      }, 3000);
+    } catch (error) {
+      errorMessage = error instanceof Error ? error.message : "An error occurred";
+      console.error("Error submitting LWP data:", error);
+    }
+  }
+
+  // Auto-fill LWP form dari barcode scan
+  function autoFillLwpFromBarcode(barcodeData: any) {
+    if (barcodeData.partName) lwpFormData.partName = barcodeData.partName;
+    if (barcodeData.kodePart) lwpFormData.kodePart = barcodeData.kodePart;
+    if (barcodeData.noMesin) lwpFormData.noMesin = barcodeData.noMesin;
+    if (barcodeData.quantity) lwpFormData.hasilOk = barcodeData.quantity;
+    isLwpFormOpen = true;
+  }
+
+  function getTotalOkForMachine(machine: any) {
+    return machine.details.reduce((sum: number, d: any) => sum + d.hasilOk, 0);
+  }
+
+  function getTotalNgForMachine(machine: any) {
+    return machine.details.reduce((sum: number, d: any) => sum + d.ng, 0);
+  }
+
+  function getEfficiencyForMachine(machine: any) {
+    const totalOk = getTotalOkForMachine(machine);
+    const totalNG = getTotalNgForMachine(machine);
+    const total = totalOk + totalNG;
+    return total > 0 ? ((totalOk / total) * 100).toFixed(1) : 0;
+  }
+
   function handleLogout() {
     if (confirm("Apakah Anda yakin ingin keluar?")) {
       window.location.href = "/";
@@ -224,6 +370,19 @@
     window.location.href = "/barcode";
   }
 
+  function handleScanMachine() {
+    window.location.href = "/scan-mesin";
+  }
+
+  // Get color class for reject classification
+  function getRejectColor(classify: string) {
+    if (classify === "Cacat Permukaan")
+      return "bg-red-50 text-red-700 border-red-200";
+    if (classify === "Dimensi") return "bg-yellow-50 text-yellow-700 border-yellow-200";
+    if (classify === "Goresan") return "bg-orange-50 text-orange-700 border-orange-200";
+    return "bg-slate-50 text-slate-700 border-slate-200";
+  }
+
   // Load data on mount
   onMount(() => {
     loadData();
@@ -238,6 +397,7 @@
     style="background-image: radial-gradient(#4f46e5 1px, transparent 1px); background-size: 24px 24px;"
   ></div>
 
+<<<<<<< HEAD
   <header class="sticky top-0 md:static z-50 transition-all duration-300">
     <div
       class="bg-white/80 backdrop-blur-md md:bg-transparent border-b border-slate-200 md:border-none shadow-sm md:shadow-none"
@@ -347,8 +507,10 @@
     </button>
   </div>
 
+=======
+>>>>>>> a1d43feec433a0361748632a0b5fce12d4acc101
   <main
-    class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:-mt-24 relative z-10 space-y-6"
+    class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:mt-6 relative z-10 space-y-6"
   >
     <div
       class="bg-white rounded-2xl shadow-md border border-slate-100 overflow-visible group hover:shadow-lg transition-all duration-500 mx-auto w-full"
@@ -358,7 +520,7 @@
           class="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start"
         >
           <div
-            class="relative shrink-0 -mt-16 md:-mt-20 group-hover:-translate-y-2 transition-transform duration-500"
+            class="relative shrink-0 -mt-16 md:-mt-8 group-hover:-translate-y-2 transition-transform duration-500"
           >
             <div
               class="w-28 h-28 md:w-44 md:h-44 rounded-2xl overflow-hidden border-4 md:border-[6px] border-white shadow-lg ring-1 ring-slate-100 mt-10"
@@ -700,110 +862,166 @@
     <div
       class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 lg:p-8"
     >
-      <a href="/kpcp-new">
+      <a href="/scan-barcode-prs" class="block">
         <button
           class="w-full bg-indigo-600 rounded-3xl text-white font-bold py-3 active:scale-95 shadow-lg shadow-indigo-300/50 hover:bg-indigo-700 hover:shadow-indigo-400/50 transition-all duration-300 cursor-pointer"
         >
-          Buat KPCP Baru
+          Scan KPCP
         </button>
       </a>
     </div>
 
-    <div
-      class="mt-8 bg-white rounded-2xl border-2 border-amber-100 shadow-sm overflow-hidden"
-    >
-      <div
-        class="bg-amber-50 px-6 py-4 border-b border-amber-100 flex justify-between items-center"
-      >
-        <div class="flex items-center gap-3">
-          <div class="p-2 bg-amber-500 rounded-lg text-white">
-            <svg
-              class="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
-            </svg>
-          </div>
-          <div>
-            <h2 class="text-lg font-bold text-amber-900">
-              Permintaan Tim Press
-            </h2>
-            <p class="text-xs text-amber-700">
-              Lot yang harus segera diproses oleh Cutting
-            </p>
+    <!-- Permintaan Tim Press Table -->
+    
+
+    <!-- LWP (Laporan Waktu Produksi) Section -->
+    <div class="space-y-6">
+      <div class="bg-white rounded-2xl border-2 border-indigo-100 shadow-sm overflow-hidden">
+        <div class="bg-indigo-50 px-6 py-4 border-b border-indigo-100 flex justify-between items-center">
+          <div class="flex items-center gap-3">
+            <div class="p-2 bg-indigo-600 rounded-lg text-white">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <div>
+              <h2 class="text-lg font-bold text-indigo-900">LWP - Laporan Waktu Produksi</h2>
+              <p class="text-xs text-indigo-700">Riwayat produksi harian per mesin</p>
+            </div>
           </div>
         </div>
-        <span
-          class="px-3 py-1 bg-amber-200 text-amber-800 text-xs font-bold rounded-full uppercase tracking-wider"
-        >
-          {pressRequests.length} Antrian
-        </span>
-      </div>
 
-      <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse">
-          <thead>
-            <tr class="bg-slate-50 border-b border-slate-100">
-              <th
-                class="px-6 py-3 text-xs font-semibold text-slate-500 uppercase"
-                >No. Lot</th
-              >
-              <th
-                class="px-6 py-3 text-xs font-semibold text-slate-500 uppercase"
-                >Quantity</th
-              >
-              <th
-                class="px-6 py-3 text-xs font-semibold text-slate-500 uppercase"
-                >Keterangan</th
-              >
-              <th
-                class="px-6 py-3 text-xs font-semibold text-slate-500 uppercase text-center"
-                >Prioritas</th
-              >
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-slate-100">
-            {#each pressRequests as req}
-              <tr class="hover:bg-slate-50 transition-colors">
-                <td class="px-6 py-4">
-                  <span
-                    class="font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded"
-                    >{req.lotNo}</span
-                  >
-                </td>
-                <td class="px-6 py-4 text-sm text-slate-700 font-medium">
-                  {req.qty} Pcs
-                </td>
-                <td class="px-6 py-4 text-sm text-slate-500">
-                  {req.note}
-                </td>
-                <td class="px-6 py-4 text-center">
-                  <span
-                    class={`px-3 py-1 rounded-full text-xs font-bold ${req.status === "Urgent" ? "bg-red-100 text-red-600" : "bg-blue-100 text-blue-600"}`}
-                  >
-                    {req.status}
-                  </span>
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
+        <!-- LWP Records Display -->
+        <div class="divide-y divide-slate-100">
+          {#each lwpRecords as machine}
+            <div class="p-6">
+              <!-- Machine Header Info -->
+              <div class="mb-4 p-4 bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl border border-indigo-100">
+                <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
+                  <div>
+                    <p class="text-xs text-slate-500 font-bold uppercase">No. Mesin</p>
+                    <p class="font-bold text-slate-800 text-lg">{machine.noMesin}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-slate-500 font-bold uppercase">Tanggal</p>
+                    <p class="font-bold text-slate-800">
+                      {new Date(machine.tanggal).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-slate-500 font-bold uppercase">Shift</p>
+                    <p class="font-bold text-slate-800">{machine.shift}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-slate-500 font-bold uppercase">NIK Operator</p>
+                    <p class="font-mono font-bold text-indigo-600">{machine.nik}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-slate-500 font-bold uppercase">Part Name</p>
+                    <p class="font-bold text-slate-800">{machine.partName}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-slate-500 font-bold uppercase">Kode Part</p>
+                    <p class="font-mono font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">{machine.kodePart}</p>
+                  </div>
+                </div>
+              </div>
 
-      {#if pressRequests.length === 0}
-        <div class="p-8 text-center text-slate-400 italic">
-          Tidak ada permintaan lot dari tim press saat ini.
+              <!-- Detail Records Table -->
+              <div class="overflow-x-auto -mx-6 px-6 mb-4">
+                <table class="w-full text-left text-sm">
+                  <thead>
+                    <tr class="bg-slate-100 border-y border-slate-200">
+                      <th class="px-4 py-3 font-semibold text-slate-600 text-xs uppercase">No. Lot</th>
+                      <th class="px-4 py-3 font-semibold text-slate-600 text-xs uppercase">Jam Mulai</th>
+                      <th class="px-4 py-3 font-semibold text-slate-600 text-xs uppercase">Jam Selesai</th>
+                      <th class="px-4 py-3 font-semibold text-slate-600 text-xs uppercase text-right">Hasil OK</th>
+                      <th class="px-4 py-3 font-semibold text-slate-600 text-xs uppercase text-right">NG</th>
+                      <th class="px-4 py-3 font-semibold text-slate-600 text-xs uppercase">Klasifikasi Reject</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    {#each machine.details as detail}
+                      <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-4 py-3">
+                          <span class="font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded text-xs">
+                            {detail.noLot}
+                          </span>
+                        </td>
+                        <td class="px-4 py-3 font-medium text-slate-700">{detail.jamMulai}</td>
+                        <td class="px-4 py-3 font-medium text-slate-700">{detail.jamSelesai}</td>
+                        <td class="px-4 py-3 text-right">
+                          <span class="font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded inline-block min-w-fit">
+                            {detail.hasilOk}
+                          </span>
+                        </td>
+                        <td class="px-4 py-3 text-right">
+                          <span class="font-bold text-rose-600 bg-rose-50 px-3 py-1 rounded inline-block min-w-fit">
+                            {detail.ng}
+                          </span>
+                        </td>
+                        <td class="px-4 py-3">
+                          <div class="flex flex-wrap gap-1">
+                            {#each detail.klasifikasiReject as reject}
+                              <span class={`px-2 py-1 rounded text-xs font-bold border ${getRejectColor(reject.jenis)}`}>
+                                {reject.jenis} ({reject.qty})
+                              </span>
+                            {/each}
+                          </div>
+                        </td>
+                      </tr>
+                    {/each}
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Summary Stats -->
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-3 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <div class="text-center">
+                  <p class="text-xs text-slate-500 font-bold uppercase mb-1">Total OK</p>
+                  <p class="text-2xl font-bold text-emerald-600">{getTotalOkForMachine(machine)}</p>
+                </div>
+                <div class="text-center">
+                  <p class="text-xs text-slate-500 font-bold uppercase mb-1">Total NG</p>
+                  <p class="text-2xl font-bold text-rose-600">{getTotalNgForMachine(machine)}</p>
+                </div>
+                <div class="text-center">
+                  <p class="text-xs text-slate-500 font-bold uppercase mb-1">Jumlah Records</p>
+                  <p class="text-2xl font-bold text-blue-600">{machine.details.length}</p>
+                </div>
+                <div class="text-center">
+                  <p class="text-xs text-slate-500 font-bold uppercase mb-1">Efisiensi</p>
+                  <p class="text-2xl font-bold text-indigo-600">{getEfficiencyForMachine(machine)}%</p>
+                </div>
+              </div>
+            </div>
+          {/each}
+
+          {#if lwpRecords.length === 0}
+            <div class="p-8 text-center text-slate-400 italic">
+              Belum ada data LWP untuk hari ini.
+            </div>
+          {/if}
         </div>
-      {/if}
+      </div>
     </div>
   </main>
+
+  <!-- FAB Button for Scan Machine -->
+  <div class="fixed bottom-6 right-6 z-50 md:bottom-8 md:right-8">
+    <button
+      onclick={handleScanMachine}
+      class="group relative w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-full shadow-xl hover:shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 flex items-center justify-center text-white hover:from-indigo-700 hover:to-indigo-800"
+      title="Scan Mesin"
+    >
+      <svg class="w-7 h-7 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+      </svg>
+      <span class="hidden md:block absolute right-full mr-3 bg-slate-800 text-white text-sm font-semibold px-3 py-2 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+        Scan Mesin
+      </span>
+    </button>
+  </div>
 </div>
 
 <style>

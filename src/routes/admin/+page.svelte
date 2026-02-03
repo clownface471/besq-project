@@ -88,15 +88,6 @@
 
 			const profileData = await profileResponse.json();
 			login(token, profileData.user as User);
-
-			// Redirect berdasarkan role
-			if (profileData.user.role === 'admin') {
-				goto('/admin');
-			} else if (profileData.user.role === 'cutting' || profileData.user.role === 'pressing') {
-				goto('/oprator');
-			} else {
-				goto('/');
-			}
 		} catch (error) {
 			errorMessage = error instanceof Error ? error.message : 'An error occurred during login';
 			console.error('Login error:', error);

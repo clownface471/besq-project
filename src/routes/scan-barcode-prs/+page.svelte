@@ -103,7 +103,11 @@
 
   function handleBack() {
     stopCamera();
+<<<<<<< HEAD:src/routes/barcode/+page.svelte
     window.location.href = '/cutting';
+=======
+    window.location.href = '/pressing';
+>>>>>>> a1d43feec433a0361748632a0b5fce12d4acc101:src/routes/scan-barcode-prs/+page.svelte
   }
 
   onMount(() => {
