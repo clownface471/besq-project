@@ -21,7 +21,7 @@
 				  $auth.user?.role === 'pressing' ? 'PRESSING SPECIALIST' : 
 				  $auth.user?.role?.toUpperCase() || 'STAFF',
 		department: `Production - ${$auth.user?.role ? $auth.user.role.charAt(0).toUpperCase() + $auth.user.role.slice(1) : '-'}`,
-		nikId: $auth.user?.nik || '-',
+		nikId: $auth.user?.username || '-',
 		// Data phone dan shift belum ada di database backend, kita set default dulu
 		phone: '-', 
 		shift: 'Shift 1', 

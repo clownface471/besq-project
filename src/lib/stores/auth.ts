@@ -1,10 +1,10 @@
-import { writable, derived } from 'svelte/store';
+import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
 import { goto } from '$app/navigation';
 
 // User interface
 export interface User {
-	nik: string;
+	username: string;
 	role: string;
 	name: string;
 }
@@ -51,7 +51,7 @@ const getInitialState = (): AuthState => {
 // Create writable store with initial state
 export const auth = writable<AuthState>(getInitialState());
 
-// Login function: saves token and userData to store and localStorage
+// Login function
 export const login = (token: string, userData: User) => {
 	auth.set({
 		token,
@@ -65,7 +65,7 @@ export const login = (token: string, userData: User) => {
 	}
 };
 
-// Logout function: clears everything and redirects to /
+// Logout function
 export const logout = () => {
 	auth.set({
 		token: null,

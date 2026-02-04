@@ -5,7 +5,7 @@
 	import { goto } from '$app/navigation';
 
 	// --- STATE (Svelte 5 Runes) ---
-	let nik = $state('');
+	let username = $state('');
 	let password = $state('');
 	let isLoading = $state(false);
 	let errorMessage = $state('');
@@ -68,7 +68,7 @@
 			const response = await fetch(`${API_URL}/login`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ nik, password })
+				body: JSON.stringify({ username, password })
 			});
 
 			const data = await response.json();
@@ -216,7 +216,7 @@
 							id="nik"
 							type="text"
 							placeholder="Masukkan NIK"
-							bind:value={nik}
+							bind:value={username}
 							required
 							disabled={isLoading}
 							class="w-full border border-gray-200 bg-gray-50 rounded-lg sm:rounded-xl py-2.5 sm:py-3 px-3 sm:px-4 outline-none focus:bg-white focus:border-[#0065F8] focus:ring-2 sm:focus:ring-4 focus:ring-blue-100 transition-all disabled:opacity-50 text-sm sm:text-base"

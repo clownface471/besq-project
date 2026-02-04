@@ -5,7 +5,7 @@
 	import { goto } from '$app/navigation';
 
 	// --- STATE (Svelte 5 Runes) ---
-	let nik = $state('');
+	let username = $state('');
 	let password = $state('');
 	let isLoading = $state(false);
 	let errorMessage = $state('');
@@ -69,7 +69,7 @@
 			const response = await fetch(`${API_URL}/login`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ nik, password })
+				body: JSON.stringify({ username, password })
 			});
 
 			const data = await response.json();
@@ -218,15 +218,14 @@
 
 					<div>
 						<label
-							for="nik"
-							class="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1 block mb-1"
-							>NIK</label
+							for="username"
+							class="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1 block mb-1">NIK</label
 						>
 						<input
-							id="nik"
+							id="username"
 							type="text"
 							placeholder="Masukkan NIK"
-							bind:value={nik}
+							bind:value={username}
 							required
 							disabled={isLoading}
 							class="w-full border border-gray-200 bg-gray-50 rounded-lg sm:rounded-xl py-2.5 sm:py-3 px-3 sm:px-4 outline-none focus:bg-white focus:border-[#0065F8] focus:ring-2 sm:focus:ring-4 focus:ring-blue-100 transition-all disabled:opacity-50 text-sm sm:text-base"
@@ -282,7 +281,7 @@
 				>
 					<div class="flex items-center gap-3 sm:gap-4 md:gap-5 w-full md:w-auto">
 						<img
-							src="https://i.pravatar.cc/300?u={$auth.user?.nik}"
+							src="https://i.pravatar.cc/300?u={$auth.user?.username}"
 							alt="User Avatar"
 							class="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full object-cover border-2 border-white shadow-md ring-2 ring-slate-100"
 						/>
@@ -290,7 +289,7 @@
 							<h2 class="text-lg sm:text-xl font-bold text-slate-800 truncate">Halo, {$auth.user?.name}!</h2>
 							<div class="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-slate-500 mt-1">
 								<span class="font-medium bg-slate-100 px-1.5 sm:px-2 py-0.5 rounded text-slate-600 truncate"
-									>{$auth.user?.nik}</span
+									>{$auth.user?.username}</span
 								>
 								<span class="hidden sm:inline">•</span>
 								<span class="capitalize truncate">{$auth.user?.role}</span>
