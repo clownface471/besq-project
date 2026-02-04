@@ -23,7 +23,6 @@
 
 	const API_URL = 'http://localhost:8080';
 
-	// --- LIFECYCLE & EFFECTS ---
 	$effect(() => {
 		if ($auth.isLoggedIn) {
 			fetchStats();
@@ -376,8 +375,7 @@
 								{#if stats.activities.length === 0}
 									<tr>
 										<td colspan="4" class="text-center py-8 sm:py-12 text-slate-500 text-sm sm:text-base"
-											>Belum ada aktivitas.</td
-										>
+											>Belum ada aktivitas.</td>
 									</tr>
 								{:else}
 									{#each stats.activities as activity}

@@ -377,7 +377,6 @@
       console.error('Camera error:', err);
     }
   }
-
   function stopCamera() {
     if (videoElement?.srcObject) {
       const tracks = (videoElement.srcObject as MediaStream).getTracks();
@@ -386,16 +385,12 @@
       scanningActive = false;
     }
   }
-
   function startQRCodeScanning() {
     if (!scanningActive || !cameraActive) return;
-
     const canvas = canvasElement;
     const video = videoElement;
     const context = canvas.getContext('2d');
-
     if (!context) return;
-
     const scan = () => {
       if (video.readyState === video.HAVE_ENOUGH_DATA) {
         canvas.width = video.videoWidth;
@@ -424,18 +419,13 @@
 
     requestAnimationFrame(scan);
   }
-
   function handleScan() {
     if (scannedData.trim()) {
       const currentTime = new Date().toLocaleTimeString('id-ID');
-      
-      // Simpan data ke localStorage sebelum redirect
       localStorage.setItem('selectedLot', scannedData);
       localStorage.setItem('scanTime', currentTime);
       
       successMessage = `Lot ${scannedData} berhasil discan!`;
-      
-      // Redirect ke halaman detail setelah 1 detik
       setTimeout(() => {
         window.location.href = `/kpcp-detail?lot=${encodeURIComponent(scannedData)}`;
       }, 1000);
@@ -448,16 +438,13 @@
     stopCamera();
     window.location.href = '/cutting';
   }
-
   onMount(() => {
-    // Load jsQR library
     const script = document.createElement('script');
     script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
     script.onload = () => {
       startCamera();
     };
     document.head.appendChild(script);
-
     return () => {
       stopCamera();
     };

@@ -1,8 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import Swal from 'sweetalert2';
 
   let lotNumber = '';
   let scanTime = '';
+  let cycleCount = 0;
   let lotDetail = {
     lot: '',
     product: 'KPCP Standard',
@@ -16,11 +18,40 @@
     noLotMixing: 'MIX-2309-A05'
   };
 
+  function handleCompleteCycle() {
+    cycleCount++;
+    Swal.fire({
+      title: 'Cycle Selesai!',
+      html: `<p class="text-lg font-semibold">Cycle <span class="text-amber-600">${cycleCount}</span> telah berhasil diselesaikan</p>`,
+      icon: 'success',
+      confirmButtonText: 'Lanjutkan',
+      confirmButtonColor: '#d97706',
+      allowOutsideClick: false
+    });
+  }
+
   function handleComplete() {
-    if (confirm('Apakah proses KPCP ini sudah selesai?')) {
-      alert('Data berhasil disimpan!');
-      window.location.href = '/cutting';
-    }
+    Swal.fire({
+      title: 'Konfirmasi Penyelesaian',
+      text: 'Apakah proses KPCP ini sudah selesai?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#4f46e5',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Ya, Selesaikan',
+      cancelButtonText: 'Batal'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        Swal.fire({
+          title: 'Berhasil!',
+          text: 'Data berhasil disimpan!',
+          icon: 'success',
+          confirmButtonColor: '#4f46e5'
+        }).then(() => {
+          window.location.href = '/pressing';
+        });
+      }
+    });
   }
 
   onMount(() => {
@@ -28,11 +59,9 @@
     lotNumber = queryParams.get('lot') || '';
     scanTime = localStorage.getItem('scanTime') || new Date().toLocaleTimeString('id-ID');
     
-    // Set data detail berdasarkan lot
     lotDetail.lot = lotNumber;
     lotDetail.startTime = scanTime;
     
-    // Hitung estimated end (misal 1 jam dari sekarang)
     const endDate = new Date();
     endDate.setHours(endDate.getHours() + 1);
     lotDetail.estimatedEnd = endDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
@@ -151,6 +180,26 @@
           <p class="text-sm text-blue-700 mt-2">Harap menyelesaikan proses untuk melanjutkan</p>
         </div>
       </div>
+    </div>
+
+    <!-- Cycle Counter Card -->
+    <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-bold text-lg text-slate-800 flex items-center gap-2">
+          <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          Progress Cycle
+        </h3>
+        <p class="text-3xl font-bold text-amber-600">{cycleCount}</p>
+      </div>
+      <button on:click={handleCompleteCycle}
+        class="w-full px-6 py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-3 shadow-lg shadow-amber-200">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+        </svg>
+        Selesaikan 1 Cycle
+      </button>
     </div>
 
     <!-- Action Button -->
