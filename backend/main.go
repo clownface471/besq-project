@@ -5,10 +5,21 @@ import (
 	"factory-api/database"
 	"factory-api/middleware"
 	"github.com/gin-gonic/gin"
+	"github.com/gin-contrib/cors"
+	"time"
 )
 
 func main() {
 	r := gin.Default()
+
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:5173"}, // Sesuaikan dengan port frontend Svelte-mu
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 
 	// 1. Inisialisasi Database & Seeder
 	database.ConnectDatabase()
@@ -49,6 +60,19 @@ func main() {
 		prodAction.POST("/cutting/start", middleware.ActionMiddleware("OPERATOR_CUTTING"), controllers.StartCutting)
 		prodAction.POST("/pressing/start", middleware.ActionMiddleware("OPERATOR_PRESSING"), controllers.StartPressing)
 	}
+
+	api := r.Group("/api")
+	api.Use(middleware.AuthAndRoleMiddleware(
+		"ADMIN", "admin", 
+		"OPERATOR_CUTTING", "cutting", 
+		"OPERATOR_PRESSING", "pressing",
+	)) 
+	{
+		api.GET("/users/profile", controllers.GetUserProfile)
+		api.GET("/dashboard/stats", controllers.GetDashboardStats)
+	}
+
+	
 
 	r.Run(":8080")
 }

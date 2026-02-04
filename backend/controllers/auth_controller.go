@@ -73,3 +73,20 @@ func Login(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"token": tokenString, "role": user.Role})
 }
+
+func GetUserProfile(c *gin.Context) {
+	// Mengambil data yang diset oleh middleware (userID, role, username)
+	// Kita tidak perlu query DB lagi karena data penting sudah ada di token
+	userID, _ := c.Get("userID")
+	role, _ := c.Get("userRole")
+	username, _ := c.Get("username")
+
+	c.JSON(http.StatusOK, gin.H{
+		"user": gin.H{
+			"id":       userID,
+			"username": username,
+			"role":     role, // Frontend butuh ini untuk redirect
+			"name":     username, // Gunakan username sebagai nama tampilan sementara
+		},
+	})
+}

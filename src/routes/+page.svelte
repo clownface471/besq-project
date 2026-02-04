@@ -89,6 +89,8 @@
 			const profileData = await profileResponse.json();
 			login(token, profileData.user as User);
 
+			const userRole = profileData.user.role.toLowerCase();
+
 			// Redirect berdasarkan role
 			if (profileData.user.role === 'admin') {
 				goto('/admin');
@@ -117,7 +119,6 @@
 
 		if (result.isConfirmed) {
 			logout();
-			goto('/');
 		}
 	}
 

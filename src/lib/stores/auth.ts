@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
-import { goto } from '$app/navigation';
+// import { goto } from '$app/navigation';
 
 // User interface
 export interface User {
@@ -76,6 +76,6 @@ export const logout = () => {
 	if (browser) {
 		localStorage.removeItem('token');
 		localStorage.removeItem('user');
-		goto('/');
+		window.location.replace('/');
 	}
 };
