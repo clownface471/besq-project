@@ -21,7 +21,7 @@
 		activities: [] as { user: string; action: string; time: string; status: string }[]
 	});
 
-	const API_URL = 'http://localhost:8080';
+	const API_URL = '';
 
 	// --- LIFECYCLE & EFFECTS ---
 	$effect(() => {

@@ -1,24 +1,63 @@
-<script>
+<script lang="ts">
+	// @ts-nocheck
 	import { goto } from '$app/navigation';
+	import { auth, logout } from '$lib/stores/auth';
+	import Swal from 'sweetalert2';
 
-	const employee = {
-		name: 'Tono Widiyanto',
-		position: 'SENIOR CUTTING SPECIALIST',
-		department: 'Production - Cutting',
-		nikId: 'KRTP-2023-04...',
-		phone: '+62 812-3456...',
-		shift: 'Shift 1 (07:00 ...)',
+	// --- PROTECT ROUTE ---
+	// Jika user belum login, lempar kembali ke halaman login
+	$effect(() => {
+		if (!$auth.isLoggedIn) {
+			goto('/');
+		}
+	});
 
-		avatar: 'https://ui-avatars.com/api/?name=Tono+Widiyanto&background=667eea&color=fff',
-		date: 'Rabu, 28 Januari'
+	// --- DYNAMIC DATA ---
+	// Mengambil data real dari user yang sedang login
+	let employee = $derived({
+		name: $auth.user?.name || 'User',
+		// Format role menjadi uppercase / judul yang bagus
+		position: $auth.user?.role === 'cutting' ? 'CUTTING SPECIALIST' : 
+				  $auth.user?.role === 'pressing' ? 'PRESSING SPECIALIST' : 
+				  $auth.user?.role?.toUpperCase() || 'STAFF',
+		department: `Production - ${$auth.user?.role ? $auth.user.role.charAt(0).toUpperCase() + $auth.user.role.slice(1) : '-'}`,
+		nikId: $auth.user?.nik || '-',
+		// Data phone dan shift belum ada di database backend, kita set default dulu
+		phone: '-', 
+		shift: 'Shift 1', 
+
+		avatar: `https://ui-avatars.com/api/?name=${$auth.user?.name || 'User'}&background=667eea&color=fff`,
+		date: new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })
+	});
+
+	const handleNavigate = (path) => {
+		goto(path);
 	};
 
-	const handleNavigate = (/** @type {string | URL} */ path) => {
-		goto(path);
+	const handleLogout = async () => {
+		const result = await Swal.fire({
+			title: 'Logout?',
+			text: 'Anda harus login ulang untuk masuk kembali.',
+			icon: 'warning',
+			showCancelButton: true,
+			confirmButtonText: 'Ya, Keluar',
+			confirmButtonColor: '#d33',
+			cancelButtonText: 'Batal'
+		});
+
+		if (result.isConfirmed) {
+			logout();
+		}
 	};
 </script>
 
 <div class="container">
+	<div class="absolute top-4 right-4 z-10">
+		<button on:click={handleLogout} class="bg-white/80 hover:bg-white text-red-500 px-4 py-2 rounded-xl shadow-sm font-bold text-xs transition-all">
+			LOGOUT
+		</button>
+	</div>
+
 	<div class="profile-section">
 		<div class="profile-left">
 			<img src={employee.avatar} alt={employee.name} class="avatar" />
@@ -36,7 +75,7 @@
 					<span class="detail-icon">📋</span>
 					<div>
 						<p class="detail-label">NIK ID</p>
-						<p class="detail-value">{employee.nikId}</p>
+						<p class="detail-value uppercase">{employee.nikId}</p>
 					</div>
 				</div>
 
@@ -68,7 +107,13 @@
 		<div class="boxes-wrapper">
 			<div class="boxes-grid">
 				<div class="box-wrapper">
-					<div class="box cutting" on:click={() => handleNavigate('/cutting')} role="button" tabindex="0" on:keydown={(e) => e.key === 'Enter' && handleNavigate('/cutting')}>
+					<div 
+						class="box cutting" 
+						on:click={() => handleNavigate('/cutting')} 
+						role="button" 
+						tabindex="0" 
+						on:keydown={(e) => e.key === 'Enter' && handleNavigate('/cutting')}
+					>
 						<svg class="box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 							<circle cx="6" cy="6" r="3"></circle>
 							<circle cx="6" cy="18" r="3"></circle>
@@ -78,10 +123,17 @@
 					</div>
 					<p class="box-label">Cutting</p>
 				</div>
+				
 				<div class="connector-line"></div>
 
 				<div class="box-wrapper">
-					<div class="box pressing" on:click={() => handleNavigate('/pressing')} role="button" tabindex="0" on:keydown={(e) => e.key === 'Enter' && handleNavigate('/pressing')}>
+					<div 
+						class="box pressing" 
+						on:click={() => handleNavigate('/pressing')} 
+						role="button" 
+						tabindex="0" 
+						on:keydown={(e) => e.key === 'Enter' && handleNavigate('/pressing')}
+					>
 						<svg class="box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 							<path d="M12 3v6m0 6v6"></path>
 							<path d="M8 10h8"></path>
@@ -97,6 +149,7 @@
 </div>
 
 <style>
+	/* ... (Style tetap sama seperti sebelumnya, tidak perlu diubah) ... */
 	.container {
 		min-height: 100vh;
 		width: 100%;
@@ -104,16 +157,17 @@
 		padding: 2rem;
 		display: flex;
 		flex-direction: column;
+		position: relative; /* Penting untuk tombol logout absolute */
 	}
-
-	/* Profile Section */
+    /* Sisanya copy-paste style dari file lama Anda */
+    /* Profile Section */
 	.profile-section {
 		display: flex;
 		align-items: center;
 		gap: 2rem;
 		background: white;
 		padding: 1.5rem 2rem;
-		border-radius: 16px;
+        border-radius: 16px;
 		box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 		margin-bottom: 3rem;
 		max-width: 1400px;
