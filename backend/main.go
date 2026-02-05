@@ -30,12 +30,16 @@ func main() {
 
 	// 3. GROUP ADMIN (Hanya Role ADMIN)
 	// Bisa: Tambah user, Lihat Log, Buat SPK/Work Order
-	admin := r.Group("/admin")
+admin := r.Group("/admin")
 	admin.Use(middleware.AuthAndRoleMiddleware("ADMIN"))
 	{
-		admin.POST("/add-operator", controllers.CreateOperator)
-		admin.GET("/audit-logs", controllers.GetAuditLogs)    // Pastikan func ini ada di admin_controller.go
-		admin.POST("/work-order", controllers.CreateWorkOrder) // Endpoint baru
+		admin.POST("/add-operator", controllers.CreateOperator) // Create
+		admin.GET("/users", controllers.GetAllUsers)            // Read
+		admin.PUT("/users/:id", controllers.UpdateUser)         // Update
+		admin.DELETE("/users/:id", controllers.DeleteUser)      // Delete
+		
+		admin.GET("/audit-logs", controllers.GetAuditLogs)
+		admin.POST("/work-order", controllers.CreateWorkOrder)
 	}
 
 	// 4. GROUP PRODUKSI UMUM (Bisa diakses Admin & Semua Operator)

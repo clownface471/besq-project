@@ -86,18 +86,21 @@
 				throw new Error('Failed to fetch user profile');
 			}
 
-			const profileData = await profileResponse.json();
+const profileData = await profileResponse.json();
 			login(token, profileData.user as User);
 
-			const userRole = profileData.user.role.toLowerCase();
+			// --- PERBAIKAN LOGIKA REDIRECT DI SINI ---
+			const role = profileData.user.role; // Contoh: "OPERATOR_PRESSING"
 
-			// Redirect berdasarkan role
-			if (profileData.user.role === 'admin') {
+			if (role === 'ADMIN') {
 				goto('/admin');
-			} else if (profileData.user.role === 'cutting' || profileData.user.role === 'pressing') {
-				goto('/oprator');
+			} else if (role === 'OPERATOR_CUTTING') {
+				goto('/cutting');   // Arahkan langsung ke halaman Cutting
+			} else if (role === 'OPERATOR_PRESSING') {
+				goto('/pressing');  // Arahkan langsung ke halaman Pressing
 			} else {
-				goto('/');
+				// Fallback jika role tidak dikenali
+				goto('/'); 
 			}
 		} catch (error) {
 			errorMessage = error instanceof Error ? error.message : 'An error occurred during login';

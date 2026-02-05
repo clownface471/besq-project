@@ -1,81 +1,61 @@
 import { writable } from 'svelte/store';
 import { browser } from '$app/environment';
-// import { goto } from '$app/navigation';
 
-// User interface
 export interface User {
+	id: number;
 	username: string;
 	role: string;
-	name: string;
+	name?: string;
+	nik?: string;
 }
 
-// Auth store state interface
 interface AuthState {
+	isLoggedIn: boolean;
 	token: string | null;
 	user: User | null;
-	isLoggedIn: boolean;
 }
 
-// Initialize state from localStorage if in browser
-const getInitialState = (): AuthState => {
-	if (browser) {
-		const storedToken = localStorage.getItem('token');
-		const storedUser = localStorage.getItem('user');
-		
-		if (storedToken && storedUser) {
-			try {
-				const user = JSON.parse(storedUser) as User;
-				return {
-					token: storedToken,
-					user: user,
-					isLoggedIn: true
-				};
-			} catch (error) {
-				console.error('Error parsing stored auth data:', error);
-				return {
-					token: null,
-					user: null,
-					isLoggedIn: false
-				};
-			}
-		}
-	}
-	
-	return {
-		token: null,
-		user: null,
-		isLoggedIn: false
-	};
+// Inisialisasi state awal dari LocalStorage (Synchronous agar siap pakai)
+const storedToken = browser ? localStorage.getItem('token') : null;
+const storedUser = browser ? localStorage.getItem('user') : null;
+
+const initialState: AuthState = {
+	isLoggedIn: !!storedToken,
+	token: storedToken,
+	user: storedUser ? JSON.parse(storedUser) : null
 };
 
-// Create writable store with initial state
-export const auth = writable<AuthState>(getInitialState());
+export const auth = writable<AuthState>(initialState);
 
-// Login function
-export const login = (token: string, userData: User) => {
-	auth.set({
-		token,
-		user: userData,
-		isLoggedIn: true
-	});
-	
+export const login = (token: string, user: User) => {
 	if (browser) {
 		localStorage.setItem('token', token);
-		localStorage.setItem('user', JSON.stringify(userData));
+		localStorage.setItem('user', JSON.stringify(user));
 	}
+	auth.set({
+		isLoggedIn: true,
+		token,
+		user
+	});
 };
 
-// Logout function
 export const logout = () => {
-	auth.set({
-		token: null,
-		user: null,
-		isLoggedIn: false
-	});
-	
 	if (browser) {
 		localStorage.removeItem('token');
 		localStorage.removeItem('user');
-		window.location.replace('/');
+        
+        // Opsional: Hapus data sesi lain
+        localStorage.removeItem('activeMachine');
+        localStorage.removeItem('selectedLot');
 	}
+	auth.set({
+		isLoggedIn: false,
+		token: null,
+		user: null
+	});
+    
+    // Paksa refresh halaman agar memori bersih
+    if (browser) {
+        window.location.replace('/');
+    }
 };
