@@ -4,6 +4,7 @@ import (
 	"factory-api/controllers"
 	"factory-api/database"
 	"factory-api/middleware"
+	
 	"github.com/gin-gonic/gin"
 	"github.com/gin-contrib/cors"
 	"time"
@@ -40,6 +41,7 @@ admin := r.Group("/admin")
 		
 		admin.GET("/audit-logs", controllers.GetAuditLogs)
 		admin.POST("/work-order", controllers.CreateWorkOrder)
+		admin.POST("/chart-production", controllers.GetProductionChart)
 	}
 
 	// 4. GROUP PRODUKSI UMUM (Bisa diakses Admin & Semua Operator)
