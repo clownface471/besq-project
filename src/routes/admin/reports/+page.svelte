@@ -46,34 +46,43 @@
     }
   }
 
-  function renderCharts() {
+function renderCharts() {
     const labels = chartData.map(d => d.jam_label);
     const totalVals = chartData.map(d => d.nilai_total);
     const ngVals = chartData.map(d => d.nilai_ng);
 
-    // --- CHART 1: Total Output (Horizontal Bar) ---
+    // --- CHART 1: Total Output (Vertical Bar) ---
     if (chartTotal) chartTotal.destroy();
     chartTotal = new Chart(canvasTotal, {
         type: 'bar',
         data: {
-            labels: labels,
+            labels: labels, // Label Jam otomatis masuk ke Sumbu X
             datasets: [{
                 label: 'Total Output',
-                data: totalVals,
+                data: totalVals, // Nilai otomatis masuk ke Sumbu Y
                 backgroundColor: '#4f46e5',
                 borderColor: '#4338ca',
                 borderWidth: 1
             }]
         },
         options: {
-            indexAxis: 'y', // Horizontal
+            // HAPUS baris 'indexAxis: 'y'' agar kembali vertikal (default)
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { title: { display: true, text: `Grafik Total Output - Mesin ${filters.mesin}` } }
+            plugins: { title: { display: true, text: `Grafik Total Output - Mesin ${filters.mesin}` } },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Jumlah Output' }
+                },
+                x: {
+                    title: { display: true, text: 'Jam Produksi' }
+                }
+            }
         }
     });
 
-    // --- CHART 2: NG (Horizontal Bar) ---
+    // --- CHART 2: NG (Vertical Bar) ---
     if (chartNG) chartNG.destroy();
     chartNG = new Chart(canvasNG, {
         type: 'bar',
@@ -88,10 +97,19 @@
             }]
         },
         options: {
-            indexAxis: 'y', // Horizontal
+            // HAPUS baris 'indexAxis: 'y''
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { title: { display: true, text: `Grafik NG - Mesin ${filters.mesin}` } }
+            plugins: { title: { display: true, text: `Grafik NG - Mesin ${filters.mesin}` } },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Jumlah NG' }
+                },
+                x: {
+                    title: { display: true, text: 'Jam Produksi' }
+                }
+            }
         }
     });
   }
