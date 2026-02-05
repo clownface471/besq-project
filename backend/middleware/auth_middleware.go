@@ -1,9 +1,10 @@
 package middleware
 
 import (
-	"net/http"
 	"fmt"
+	"net/http"
 	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -23,7 +24,15 @@ func AuthAndRoleMiddleware(allowedRoles ...string) gin.HandlerFunc {
 		})
 
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-			userRole := claims["role"].(string)
+			// Safety check: Pastikan role ada dan berbentuk string
+			roleClaim, ok := claims["role"].(string)
+			if !ok {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Format Token Salah: Role tidak ditemukan"})
+				c.Abort()
+				return
+			}
+
+			userRole := roleClaim
 
 			// Cek apakah role ada di daftar yang diizinkan
 			authorized := false
@@ -40,10 +49,21 @@ func AuthAndRoleMiddleware(allowedRoles ...string) gin.HandlerFunc {
 				return
 			}
 
+			// Set data ke Context
 			c.Set("userRole", userRole)
-			c.Set("userRole", claims["role"])
 			c.Set("userID", claims["user_id"])
-			c.Set("username", claims["username"]) // Pastikan saat login, username juga dimasukkan ke claims
+
+			// --- PERBAIKAN UTAMA DI SINI ---
+			// Cek apakah username ada di dalam token
+			if username, ok := claims["username"].(string); ok {
+				c.Set("username", username)
+			} else {
+				// Fallback jika token lama tidak punya username
+				// Ini mencegah panic "interface conversion: interface {} is nil"
+				c.Set("username", "UNKNOWN_USER")
+			}
+			// -------------------------------
+
 			c.Next()
 		} else {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Token tidak valid", "details": err.Error()})
@@ -52,11 +72,11 @@ func AuthAndRoleMiddleware(allowedRoles ...string) gin.HandlerFunc {
 	}
 }
 
+// ... (ActionMiddleware biarkan tetap sama) ...
 func ActionMiddleware(requiredRole string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userRole, _ := c.Get("userRole")
 
-		// Jika mencoba POST, PUT, atau DELETE
 		if c.Request.Method != "GET" {
 			if userRole != requiredRole && userRole != "ADMIN" {
 				c.JSON(http.StatusForbidden, gin.H{

@@ -2,15 +2,17 @@ package controllers
 
 import (
 	"factory-api/database"
-	"fmt"
 	"factory-api/models"
+	"fmt"
 	"net/http"
-	"time"              // TAMBAHKAN INI
+	"time"
+
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5" // TAMBAHKAN INI
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
 
+// ... (CreateOperator tetap sama, tidak perlu diubah) ...
 func CreateOperator(c *gin.Context) {
 	var input models.RegisterInput
 
@@ -19,7 +21,6 @@ func CreateOperator(c *gin.Context) {
 		return
 	}
 
-	// Hash password sebelum simpan
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 
 	user := models.User{
@@ -36,8 +37,9 @@ func CreateOperator(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Operator berhasil dibuat", "data": user})
 }
 
-var jwtKey = []byte("secret_key_besq_2026") // Ganti dengan key yang lebih kuat di production
+var jwtKey = []byte("secret_key_besq_2026")
 
+// --- FUNGSI LOGIN (YANG DIPERBAIKI) ---
 func Login(c *gin.Context) {
 	var input struct {
 		Username string `json:"username" binding:"required"`
@@ -45,10 +47,10 @@ func Login(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&input); err != nil {
-        fmt.Println("Error Binding:", err.Error()) // Lihat log di VS Code terminal
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Input tidak valid: " + err.Error()})
-        return
-    }
+		fmt.Println("Error Binding:", err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Input tidak valid: " + err.Error()})
+		return
+	}
 	var user models.User
 	if err := database.DB.Where("username = ?", input.Username).First(&user).Error; err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User tidak ditemukan"})
@@ -63,10 +65,12 @@ func Login(c *gin.Context) {
 	}
 
 	// Generate JWT
+	// PERBAIKAN: Tambahkan "username" ke dalam claims!
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"user_id": user.ID,
-		"role":    user.Role,
-		"exp":     time.Now().Add(time.Hour * 24).Unix(),
+		"user_id":  user.ID,
+		"role":     user.Role,
+		"username": user.Username, // <--- INI BARIS PENTING YANG HILANG
+		"exp":      time.Now().Add(time.Hour * 24).Unix(),
 	})
 
 	tokenString, _ := token.SignedString(jwtKey)
@@ -75,8 +79,6 @@ func Login(c *gin.Context) {
 }
 
 func GetUserProfile(c *gin.Context) {
-	// Mengambil data yang diset oleh middleware (userID, role, username)
-	// Kita tidak perlu query DB lagi karena data penting sudah ada di token
 	userID, _ := c.Get("userID")
 	role, _ := c.Get("userRole")
 	username, _ := c.Get("username")
@@ -85,8 +87,8 @@ func GetUserProfile(c *gin.Context) {
 		"user": gin.H{
 			"id":       userID,
 			"username": username,
-			"role":     role, // Frontend butuh ini untuk redirect
-			"name":     username, // Gunakan username sebagai nama tampilan sementara
+			"role":     role,
+			"name":     username,
 		},
 	})
 }

@@ -23,8 +23,8 @@ func main() {
 
 	// 1. Inisialisasi Database & Seeder
 	database.ConnectDatabase()
-	database.SeedAdmin()
-
+	database.SeedUsers()
+	
 	// 2. Route Public (Tanpa Token)
 	r.POST("/login", controllers.Login)
 
@@ -59,6 +59,7 @@ func main() {
 		// Endpoint spesifik mesin (Butuh Role Spesifik di ActionMiddleware)
 		prodAction.POST("/cutting/start", middleware.ActionMiddleware("OPERATOR_CUTTING"), controllers.StartCutting)
 		prodAction.POST("/pressing/start", middleware.ActionMiddleware("OPERATOR_PRESSING"), controllers.StartPressing)
+		prodAction.POST("/pressing/cycle", middleware.ActionMiddleware("OPERATOR_PRESSING"), controllers.RecordPressingCycle)
 	}
 
 	api := r.Group("/api")
@@ -70,6 +71,9 @@ func main() {
 	{
 		api.GET("/users/profile", controllers.GetUserProfile)
 		api.GET("/dashboard/stats", controllers.GetDashboardStats)
+		api.GET("/pressing/today", controllers.GetPressingDashboard)
+		api.POST("/scan-machine", controllers.ScanMachine)
+		api.POST("/lwp", controllers.CreateLWP)
 	}
 
 	
