@@ -65,9 +65,16 @@ func GetProductionChart(c *gin.Context) {
 	`
 
 	var results []ChartData
-	// Eksekusi Raw Query
-	// Urutan parameter harus sesuai dengan tanda tanya (?) di query: Tanggal, NoMC, JamMulai, JamSelesai
-	if err := database.DB.Raw(query, filter.Tanggal, filter.Mesin, jamMulai, jamSelesai).Scan(&results).Error; err != nil {
+	
+	// --- PERBAIKAN DISINI ---
+	// Cek dulu apakah koneksi MySQL tersedia
+	if database.MySQL == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Koneksi ke Database Statistik (MySQL) terputus atau tidak dikonfigurasi."})
+		return
+	}
+
+	// Gunakan database.MySQL, BUKAN database.DB
+	if err := database.MySQL.Raw(query, filter.Tanggal, filter.Mesin, jamMulai, jamSelesai).Scan(&results).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data grafik: " + err.Error()})
 		return
 	}
