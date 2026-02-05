@@ -27,11 +27,23 @@ func ConnectDatabase() {
 	DB = sqliteDB
 	fmt.Println("✅ SQLite Connected (besq.db)")
 
-	// 2. KONEKSI MYSQL (Database Statistik/Pabrik)
-	// Sesuaikan nama database dengan yang ada di HeidiSQL kamu!
-	// Jika nama DB kamu bukan 'besq_factory', ganti bagian ini.
-	dsn := "root:@tcp(127.0.0.1:3306)/besq_factory?charset=utf8mb4&parseTime=True&loc=Local&allowNativePasswords=true"
+// 2. KONEKSI MYSQL (Database Statistik Perusahaan)
 	
+	// --- ISI DATA INI SESUAI KREDENSIAL SERVER ---
+	dbUser := "username_db_asli"   // Misal: 'admin_prod'
+	dbPass := "password_db_asli"   // Misal: 'Rahasia123!'
+	dbHost := "192.168.x.x"        // IP Address Server DB (Cek di HeidiSQL session manager)
+	dbPort := "3306"               // Port DB (Default 3306)
+	dbName := "nama_database_asli" // Database yang ada tabel trh_lwp_prs
+
+	// Format DSN
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local&allowNativePasswords=true", 
+		dbUser, dbPass, dbHost, dbPort, dbName)
+	
+	// Tambahkan timeout agar tidak hang jika koneksi lambat
+	// Menambahkan &timeout=10s dan &readTimeout=30s
+	dsn += "&timeout=10s&readTimeout=30s"
+
 	mysqlDB, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		// Kita gunakan Println, bukan Panic.
