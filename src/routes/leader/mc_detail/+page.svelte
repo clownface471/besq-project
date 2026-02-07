@@ -52,71 +52,268 @@ function renderCharts() {
 
     // --- CHART 1: Total Output (Vertical Bar) ---
     if (chartTotal) chartTotal.destroy();
+    
+    // Tentukan target untuk Total Output (contoh: target 30 unit per jam)
+    const targetTotal = 30;
+    
     chartTotal = new Chart(canvasTotal, {
         type: 'bar',
         data: {
-            labels: labels, // Label Jam otomatis masuk ke Sumbu X
-            datasets: [{
-                label: 'Total Output',
-                data: totalVals, // Nilai otomatis masuk ke Sumbu Y
-                backgroundColor: '#4f46e5',
-                borderColor: '#4338ca',
-                borderWidth: 1
-            }]
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Total Output',
+                    data: totalVals,
+                    backgroundColor: '#4f46e5',
+                    borderColor: '#4338ca',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    barPercentage: 0.7
+                },
+                {
+                    label: 'Target Output',
+                    type: 'line', // Garis target
+                    data: Array(labels.length).fill(targetTotal),
+                    borderColor: '#10b981',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    pointRadius: 0,
+                    fill: false,
+                    tension: 0
+                }
+            ]
         },
         options: {
-            // HAPUS baris 'indexAxis: 'y'' agar kembali vertikal (default)
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { title: { display: true, text: `Grafik Total Output - Mesin ${filters.mesin}` } },
+            plugins: {
+                title: { 
+                    display: true, 
+                    text: `Grafik Total Output - Mesin ${filters.mesin}`,
+                    font: { size: 16, weight: 'bold' }
+                },
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20
+                    }
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.datasetIndex === 0) {
+                                label += context.raw + ' unit';
+                                // Tambahkan indikator target
+                                const diff = (context.raw as number) - targetTotal;
+                                if (diff >= 0) {
+                                    label += ` (${diff} di atas target)`;
+                                } else {
+                                    label += ` (${Math.abs(diff)} di bawah target)`;
+                                }
+                            } else {
+                                label += 'Target: ' + context.raw + ' unit';
+                            }
+                            return label;
+                        }
+                    }
+                },
+                annotation: {
+                    annotations: {
+                        targetLine: {
+                            type: 'line',
+                            yMin: targetTotal,
+                            yMax: targetTotal,
+                            borderColor: '#10b981',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            label: {
+                                content: `Target: ${targetTotal}`,
+                                position: 'end',
+                                backgroundColor: '#10b981',
+                                color: 'white',
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                },
+                                padding: 6
+                            }
+                        }
+                    }
+                }
+            },
             scales: {
                 y: {
                     beginAtZero: true,
-                    title: { display: true, text: 'Jumlah Output' }
+                    title: { 
+                        display: true, 
+                        text: 'Jumlah Output',
+                        font: { weight: 'bold' }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    }
                 },
                 x: {
-                    title: { display: true, text: 'Jam Produksi' }
+                    title: { 
+                        display: true, 
+                        text: 'Jam Produksi',
+                        font: { weight: 'bold' }
+                    },
+                    grid: {
+                        display: false
+                    }
                 }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
             }
         }
     });
 
     // --- CHART 2: NG (Vertical Bar) ---
     if (chartNG) chartNG.destroy();
+    
+    // Tentukan target untuk NG (contoh: maksimal 5 unit per jam)
+    const targetNG = 5;
+    
     chartNG = new Chart(canvasNG, {
         type: 'bar',
         data: {
             labels: labels,
-            datasets: [{
-                label: 'Total NG',
-                data: ngVals,
-                backgroundColor: '#e11d48',
-                borderColor: '#be123c',
-                borderWidth: 1
-            }]
+            datasets: [
+                {
+                    label: 'Total NG',
+                    data: ngVals,
+                    backgroundColor: '#e11d48',
+                    borderColor: '#be123c',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    barPercentage: 0.7
+                },
+                {
+                    label: 'Target Maksimal NG',
+                    type: 'line', // Garis target
+                    data: Array(labels.length).fill(targetNG),
+                    borderColor: '#f59e0b',
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    pointRadius: 0,
+                    fill: false,
+                    tension: 0
+                }
+            ]
         },
         options: {
-            // HAPUS baris 'indexAxis: 'y''
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { title: { display: true, text: `Grafik NG - Mesin ${filters.mesin}` } },
+            plugins: {
+                title: { 
+                    display: true, 
+                    text: `Grafik NG - Mesin ${filters.mesin}`,
+                    font: { size: 16, weight: 'bold' }
+                },
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: {
+                        usePointStyle: true,
+                        padding: 20
+                    }
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: {
+                        label: function(context) {
+                            let label = context.dataset.label || '';
+                            if (label) {
+                                label += ': ';
+                            }
+                            if (context.datasetIndex === 0) {
+                                label += context.raw + ' unit';
+                                // Tambahkan indikator target
+                                const diff = (context.raw as number) - targetNG;
+                                if (diff <= 0) {
+                                    label += ` (${Math.abs(diff)} di bawah target)`;
+                                } else {
+                                    label += ` (${diff} di atas target)`;
+                                }
+                            } else {
+                                label += 'Target maksimal: ' + context.raw + ' unit';
+                            }
+                            return label;
+                        }
+                    }
+                },
+                annotation: {
+                    annotations: {
+                        targetLine: {
+                            type: 'line',
+                            yMin: targetNG,
+                            yMax: targetNG,
+                            borderColor: '#f59e0b',
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            label: {
+                                content: `Target: ≤${targetNG}`,
+                                position: 'end',
+                                backgroundColor: '#f59e0b',
+                                color: 'white',
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                },
+                                padding: 6
+                            }
+                        }
+                    }
+                }
+            },
             scales: {
                 y: {
                     beginAtZero: true,
-                    title: { display: true, text: 'Jumlah NG' }
+                    title: { 
+                        display: true, 
+                        text: 'Jumlah NG',
+                        font: { weight: 'bold' }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.1)'
+                    }
                 },
                 x: {
-                    title: { display: true, text: 'Jam Produksi' }
+                    title: { 
+                        display: true, 
+                        text: 'Jam Produksi',
+                        font: { weight: 'bold' }
+                    },
+                    grid: {
+                        display: false
+                    }
                 }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
             }
         }
     });
-  }
+}
 
   onMount(() => {
       loadChartData();
   });
 </script>
+
 <div class="p-6 max-w-7xl mx-auto space-y-6">
     <div class="flex justify-between items-center">
         <h1 class="text-2xl font-bold text-slate-800">Laporan Produksi Per Jam</h1>

@@ -1,7 +1,11 @@
+
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { auth } from '$lib/stores/auth';
+	import Chart from 'chart.js/auto';
+import annotationPlugin from 'chartjs-plugin-annotation';
+Chart.register(annotationPlugin);
 
 	const API_URL = 'http://localhost:8080';
 
@@ -13,6 +17,7 @@
 	};
 
 	let isLoading = true;
+	let charts: { [key: string]: { total?: Chart; status?: Chart } } = {};
 
 	const divisions = [
 		{
@@ -23,7 +28,8 @@
 			bgColor: 'bg-blue-50',
 			borderColor: 'border-blue-200',
 			textColor: 'text-blue-700',
-			description: 'Proses pencampuran bahan baku'
+			description: 'Proses pencampuran bahan baku',
+			chartColor: '#3b82f6'
 		},
 		{
 			id: 'cutting',
@@ -33,7 +39,8 @@
 			bgColor: 'bg-purple-50',
 			borderColor: 'border-purple-200',
 			textColor: 'text-purple-700',
-			description: 'Proses pemotongan material'
+			description: 'Proses pemotongan material',
+			chartColor: '#a855f7'
 		},
 		{
 			id: 'pressing',
@@ -43,7 +50,8 @@
 			bgColor: 'bg-orange-50',
 			borderColor: 'border-orange-200',
 			textColor: 'text-orange-700',
-			description: 'Proses pengepresan produk'
+			description: 'Proses pengepresan produk',
+			chartColor: '#f97316'
 		},
 		{
 			id: 'finishing',
@@ -53,7 +61,8 @@
 			bgColor: 'bg-green-50',
 			borderColor: 'border-green-200',
 			textColor: 'text-green-700',
-			description: 'Proses penyelesaian akhir'
+			description: 'Proses penyelesaian akhir',
+			chartColor: '#22c55e'
 		}
 	];
 
@@ -69,7 +78,6 @@
 			}
 		} catch (error) {
 			console.error('Error fetching dashboard data:', error);
-			// Fallback data untuk demonstration
 			dashboardData = {
 				mixing: { total: 45, pending: 12, completed: 33 },
 				cutting: { total: 38, pending: 8, completed: 30 },
@@ -81,29 +89,200 @@
 		}
 	}
 
-	function getProgressPercentage(division: string) {
-		if (dashboardData[division as keyof typeof dashboardData].total === 0) return 0;
-		return Math.round(
-			((dashboardData[division as keyof typeof dashboardData].completed /
-				dashboardData[division as keyof typeof dashboardData].total) *
-				100)
-		);
-	}
+	function initializeCharts() {
+    setTimeout(() => {
+        divisions.forEach((division) => {
+            const data = dashboardData[division.id as keyof typeof dashboardData];
+            
+            // Tentukan nilai target untuk setiap divisi (contoh: target 35 untuk produksi, 5 untuk NG)
+            // Anda bisa menyesuaikan nilai target sesuai kebutuhan
+            const productionTarget = 35; // Target produksi total
+            const notGoodTarget = 5; // Target maksimal NG
+            
+            const totalCanvasId = `chart-total-${division.id}`;
+            const totalCanvas = document.getElementById(totalCanvasId) as HTMLCanvasElement;
+            if (totalCanvas) {
+                const newChart = new Chart(totalCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: ['total produksi'],
+                        datasets: [
+                            {
+                                label: 'Produk',
+                                data: [data.completed || 25, data.pending || 15],
+                                backgroundColor: '#3b82f6',
+                                borderRadius: 4,
+                                borderSkipped: false
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                padding: 8,
+                                displayColors: false
+                            },
+                            // Plugin untuk garis target
+                            annotation: {
+                                annotations: {
+                                    targetLine: {
+                                        type: 'line',
+                                        yMin: productionTarget,
+                                        yMax: productionTarget,
+                                        borderColor: '#10b981', // Warna hijau untuk target
+                                        borderWidth: 2,
+                                        borderDash: [5, 5], // Garis putus-putus
+										label: {
+											content: `Target: ${productionTarget}`,
+											position: 'end',
+											backgroundColor: '#10b981',
+											color: 'white',
+											font: {
+												size: 10
+											}
+										}
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    font: {
+                                        size: 10
+                                    }
+                                },
+                                grid: {
+                                    color: '#f0f0f0'
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    font: {
+                                        size: 10,
+                                        weight: 'bold'
+                                    }
+                                },
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                });
+                if (!charts[division.id]) charts[division.id] = {};
+                charts[division.id].total = newChart;
+            }
 
-	function getStatusColor(percentage: number, divisionId: string) {
+            const notGoodCanvasId = `chart-notgood-${division.id}`;
+            const notGoodCanvas = document.getElementById(notGoodCanvasId) as HTMLCanvasElement;
+            if (notGoodCanvas) {
+                const notGoodCount = Math.floor((data.pending || 15) * 0.4);
+                const goodCount = (data.pending || 15) - notGoodCount;
+                
+                const newChart = new Chart(notGoodCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: ['NG'],
+                        datasets: [
+                            {
+                                label: 'Status',
+                                data: [notGoodCount, goodCount],
+                                backgroundColor: '#ef4444',
+                                borderRadius: 4,
+                                borderSkipped: false
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                padding: 8,
+                                displayColors: false
+                            },
+                            // Plugin untuk garis target
+                            annotation: {
+                                annotations: {
+                                    targetLine: {
+                                        type: 'line',
+                                        yMin: notGoodTarget,
+                                        yMax: notGoodTarget,
+                                        borderColor: '#f59e0b', // Warna kuning/orange untuk target NG
+                                        borderWidth: 2,
+                                        borderDash: [5, 5],
+										label: {
+											content: `Target: ${notGoodTarget}`,
+											position: 'end',
+											backgroundColor: '#f59e0b',
+											color: 'white',
+											font: {
+												size: 10
+											}
+										}
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    font: {
+                                        size: 10
+                                    }
+                                },
+                                grid: {
+                                    color: '#f0f0f0'
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    font: {
+                                        size: 10,
+                                        weight: 'bold'
+                                    }
+                                },
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                });
+                if (!charts[division.id]) charts[division.id] = {};
+                charts[division.id].status = newChart;
+            }
+        });
+    }, 100);
+}
+
+	function getStatusColor(divisionId: string) {
 		if (divisionId === 'cutting') {
-			return { bg: 'bg-red-100', bgFill: '#ef4444', text: 'text-red-700', badge: 'bg-red-500', label: 'Problem' };
+			return { badge: 'bg-red-500', label: 'Problem' };
 		}
 		if (divisionId === 'mixing') {
-			return { bg: 'bg-green-100', bgFill: '#22c55e', text: 'text-green-700', badge: 'bg-green-500', label: 'Lancar' };
+			return { badge: 'bg-green-500', label: 'Lancar' };
 		}
 		if (divisionId === 'pressing') {
-			return { bg: 'bg-yellow-100', bgFill: '#eab308', text: 'text-yellow-700', badge: 'bg-yellow-500', label: 'Sedang Berjalan' };
+			return { badge: 'bg-yellow-500', label: 'Sedang Berjalan' };
 		}
 		if (divisionId === 'finishing') {
-			return { bg: 'bg-green-100', bgFill: '#22c55e', text: 'text-green-700', badge: 'bg-green-500', label: 'Lancar' };
+			return { badge: 'bg-green-500', label: 'Lancar' };
 		}
-		return { bg: 'bg-slate-100', bgFill: '#64748b', text: 'text-slate-700', badge: 'bg-slate-500', label: 'Unknown' };
+		return { badge: 'bg-slate-500', label: 'Unknown' };
 	}
 
 	function handleDetailClick(divisionId: string) {
@@ -115,14 +294,18 @@
 	onMount(() => {
 		fetchDashboardData();
 	});
+
+	$: if (!isLoading) {
+		initializeCharts();
+	}
 </script>
 
-<div class="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 p-8">
 	<div class="max-w-7xl mx-auto">
 		<!-- Header -->
-		<div class="mb-8">
-			<h1 class="text-3xl font-bold text-slate-800 mb-2">Dashboard Manager</h1>
-			<p class="text-slate-600">Kelola dan pantau semua divisi produksi Anda</p>
+		<div class="mb-12">
+			<h1 class="text-4xl font-bold text-slate-900 mb-3">Dashboard Manager</h1>
+			<p class="text-slate-600 text-lg">Pantau performa setiap divisi produksi secara real-time</p>
 		</div>
 
 		<!-- Loading State -->
@@ -136,67 +319,57 @@
 				</div>
 			</div>
 		{:else}
-			<!-- Cards Grid -->
-			<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+			<!-- Cards Grid - 2 columns layout -->
+			<div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
 				{#each divisions as division (division.id)}
-					{@const percentage = getProgressPercentage(division.id)}
-					{@const status = getStatusColor(percentage, division.id)}
+					{@const status = getStatusColor(division.id)}
+					{@const data = dashboardData[division.id as keyof typeof dashboardData]}
 					<div
-						class="group relative bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-300 overflow-hidden border border-slate-200 hover:border-slate-300"
+						class="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-slate-100 hover:border-slate-200"
 					>
-						<!-- Background Gradient Line -->
-						<div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r {division.color}"></div>
+						<div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r {division.color}"></div>
 
-						<!-- Card Content -->
-						<div class="p-6 relative z-10">
-							<!-- Icon & Title -->
-							<div class="flex items-center justify-between mb-4">
-								<div class="flex items-center gap-3">
-									<div class="{division.bgColor} p-3 rounded-xl group-hover:scale-110 transition-transform">
-										<i class="{division.icon} {division.textColor} text-xl"></i>
-									</div>
-									<div>
-										<h3 class="text-lg font-bold text-slate-800">{division.name}</h3>
-										<p class="text-xs text-slate-500">{division.description}</p>
-									</div>
+						<div class="p-8 relative z-10">
+							<div class="flex items-center gap-4 mb-8">
+								<div class="{division.bgColor} p-4 rounded-xl group-hover:scale-110 transition-transform shadow-md">
+									<i class="{division.icon} {division.textColor} text-2xl"></i>
+								</div>
+								<div class="flex-1">
+									<h3 class="text-xl font-bold text-slate-800">{division.name}</h3>
+									<p class="text-sm text-slate-500 mt-1">{division.description}</p>
 								</div>
 							</div>
 
 							<!-- Status Badge -->
-							<div class="mb-4 flex items-center gap-2">
-								<span class="{status.badge} w-3 h-3 rounded-full"></span>
-								<span class="{status.text} text-sm font-semibold">{status.label}</span>
+							<div class="mb-8 flex items-center gap-3 px-4 py-3 bg-slate-50 rounded-lg border border-slate-200">
+								<span class="{status.badge} w-3 h-3 rounded-full animate-pulse"></span>
+								<span class="text-slate-700 text-sm font-bold flex-1">{status.label}</span>
+								<span class="text-slate-600 text-sm font-semibold px-3 py-1 bg-white rounded-md">Total: <span class="text-slate-900 font-bold">{dashboardData[division.id as keyof typeof dashboardData].total}</span></span>
 							</div>
 
-							<!-- Progress Bar with Percentage -->
-							<div class="space-y-2">
-								<div class="flex justify-between items-center">
-									<span class="text-xs text-slate-500">Progress</span>
-									<span class="{status.text} font-bold text-lg">{percentage}%</span>
+							<!-- Charts Grid -->
+							<div class="grid grid-cols-2 gap-6">
+								<!-- Total Product Chart - BLUE -->
+								<div class="flex flex-col items-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+									<p class="text-xs text-blue-700 font-bold mb-3">Total Output</p>
+									<canvas id="chart-total-{division.id}" style="max-height: 120px;"></canvas>
 								</div>
-								<div class="w-full {status.bg} rounded-full h-3 overflow-hidden border border-slate-200">
-									<div
-										class="h-full rounded-full transition-all duration-500"
-										style="width: {percentage}%; background-color: {status.bgFill};"
-									></div>
+
+								<!-- Not Good Status Chart - RED -->
+								<div class="flex flex-col items-center p-4 bg-red-50 rounded-lg border border-red-200">
+									<p class="text-xs text-red-700 font-bold mb-3">Total NG</p>
+									<canvas id="chart-notgood-{division.id}" style="max-height: 120px;"></canvas>
 								</div>
 							</div>
-
-							<!-- Task Count -->
-							<p class="text-xs text-slate-500 mt-3 text-center">
-								{dashboardData[division.id as keyof typeof dashboardData].completed} dari {dashboardData[division.id as keyof typeof dashboardData].total}
-							</p>
 						</div>
 
-						<!-- Hover Action Button -->
 						<div
-							class="px-6 py-3 bg-gradient-to-r {division.color} bg-opacity-0 group-hover:bg-opacity-5 transition-all duration-300 border-t border-slate-200 group-hover:border-slate-300"
+							class="px-8 py-4 bg-slate-50 border-t border-slate-100"
 						>
 							<button
 								on:click={() => handleDetailClick(division.id)}
-								class="w-full py-2 px-3 rounded-lg text-sm font-medium {division.textColor} hover:{division.bgColor} transition-all duration-300 flex items-center justify-center gap-2"
+								class="w-full py-2 px-4 rounded-lg text-sm font-semibold text-white bg-slate-700 hover:bg-slate-800 transition-all duration-300"
 							>
-								<i class="fa-solid fa-arrow-right"></i>
 								Lihat Detail
 							</button>
 						</div>
