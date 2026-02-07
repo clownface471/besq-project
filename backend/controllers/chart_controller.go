@@ -9,14 +9,11 @@ import (
 )
 
 // --- LEVEL 1: MANAGER VIEW (Overview Per Proses) ---
-// Menampilkan total output vs target untuk setiap proses (Cutting, Pressing, dll)
 func GetManagerOverview(c *gin.Context) {
-	tanggal := c.Query("tanggal") // Format: YYYY-MM-DD
+	tanggal := c.Query("tanggal") 
 
 	var results []models.ChartSeries
 
-	// Query: Mengelompokkan berdasarkan kolom 'proses'
-	// Target dihitung dari: (Durasi Kerja dalam Jam) * (Target per Jam dari stdlot)
 	query := `
 		SELECT 
 			t.proses AS label,
@@ -28,8 +25,9 @@ func GetManagerOverview(c *gin.Context) {
 		GROUP BY t.proses
 	`
 
-	if err := database.DB.Raw(query, tanggal).Scan(&results).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data manager: " + err.Error()})
+	// PERBAIKAN: Gunakan database.MySQL (bukan database.DB)
+	if err := database.MySQL.Raw(query, tanggal).Scan(&results).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal ambil data manager: " + err.Error()})
 		return
 	}
 
@@ -37,10 +35,9 @@ func GetManagerOverview(c *gin.Context) {
 }
 
 // --- LEVEL 2: LEADER VIEW (Overview Per Mesin) ---
-// Menampilkan performa setiap mesin dalam satu proses spesifik
 func GetLeaderProcessView(c *gin.Context) {
 	tanggal := c.Query("tanggal")
-	proses := c.Query("proses") // Contoh: 'PRS'
+	proses := c.Query("proses") 
 
 	var results []models.ChartSeries
 
@@ -56,8 +53,9 @@ func GetLeaderProcessView(c *gin.Context) {
 		ORDER BY t.noMC
 	`
 
-	if err := database.DB.Raw(query, tanggal, proses).Scan(&results).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data leader: " + err.Error()})
+	// PERBAIKAN: Gunakan database.MySQL
+	if err := database.MySQL.Raw(query, tanggal, proses).Scan(&results).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal ambil data leader: " + err.Error()})
 		return
 	}
 
@@ -65,15 +63,12 @@ func GetLeaderProcessView(c *gin.Context) {
 }
 
 // --- LEVEL 3: MACHINE DETAIL (Per Jam) ---
-// Menampilkan breakdown per jam untuk satu mesin (Target, Actual, OK, NG)
 func GetMachineDetail(c *gin.Context) {
 	tanggal := c.Query("tanggal")
-	noMC := c.Query("no_mc") // Contoh: '04A'
+	noMC := c.Query("no_mc")
 
 	var results []models.ChartSeries
 
-	// Query CTE (Common Table Expression) untuk memecah data per jam
-	// Menggunakan COLLATE pada parameter noMC untuk mencegah error "Illegal mix of collations"
 	query := `
 	WITH RECURSIVE 
     jam_master AS (
@@ -109,8 +104,9 @@ func GetMachineDetail(c *gin.Context) {
     ORDER BY jam_angka ASC;
 	`
 
-	if err := database.DB.Raw(query, tanggal, noMC).Scan(&results).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil detail mesin: " + err.Error()})
+	// PERBAIKAN: Gunakan database.MySQL
+	if err := database.MySQL.Raw(query, tanggal, noMC).Scan(&results).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal ambil detail mesin: " + err.Error()})
 		return
 	}
 
