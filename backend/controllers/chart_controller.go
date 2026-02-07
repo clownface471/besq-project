@@ -8,8 +8,24 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func isDBConnected(c *gin.Context) bool {
+	if database.MySQL == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": "Database Statistik (MySQL) tidak terhubung. Pastikan VPN aktif atau konfigurasi DB benar.",
+			"data":  []models.ChartSeries{}, // Return data kosong agar frontend tidak error
+		})
+		return false
+	}
+	return true
+}
+
 // --- LEVEL 1: MANAGER VIEW (Overview Per Proses) ---
 func GetManagerOverview(c *gin.Context) {
+
+	if !isDBConnected(c) {
+		return
+	}
+
 	tanggal := c.Query("tanggal") 
 
 	var results []models.ChartSeries
@@ -35,6 +51,11 @@ func GetManagerOverview(c *gin.Context) {
 
 // --- LEVEL 2: LEADER VIEW (Overview Per Mesin) ---
 func GetLeaderProcessView(c *gin.Context) {
+
+	if !isDBConnected(c) {
+		return
+	}
+
 	tanggal := c.Query("tanggal")
 	proses := c.Query("proses") 
 
@@ -62,6 +83,11 @@ func GetLeaderProcessView(c *gin.Context) {
 
 // --- LEVEL 3: MACHINE DETAIL (Per Jam) ---
 func GetMachineDetail(c *gin.Context) {
+
+	if !isDBConnected(c) {
+		return
+	}
+
 	tanggal := c.Query("tanggal")
 	noMC := c.Query("no_mc")
 

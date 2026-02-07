@@ -4,6 +4,9 @@
     import Chart from 'chart.js/auto';
     import { auth } from '$lib/stores/auth';
     import { goto } from '$app/navigation';
+    import annotationPlugin from 'chartjs-plugin-annotation';
+
+    Chart.register(annotationPlugin);
 
     // Definisi Canvas untuk 3 Grafik
     let canvasTotal: HTMLCanvasElement;
@@ -18,16 +21,26 @@
     $: noMC = $page.url.searchParams.get('no_mc') || '';
     let selectedDate = $page.url.searchParams.get('tanggal') || new Date().toISOString().split('T')[0];
     
+    // Perbaikan: Definisi filters object
+    let filters = {
+        tanggal: selectedDate,
+        mesin: noMC
+    };
+
+    // Reactivity: Update filters jika URL berubah
+    $: filters.mesin = noMC;
+
     let itemsProduced = "";
     let isLoading = false;
     
-    const API_URL = 'http://localhost:8080';
+    const API_URL = '';
 
-    async function fetchData() {
+    // Perbaikan: Rename fetchData -> loadChartData sesuai onMount
+    async function loadChartData() {
         if (!noMC) return;
         isLoading = true;
         try {
-            const res = await fetch(`${API_URL}/api/chart/machine?tanggal=${selectedDate}&no_mc=${noMC}`, {
+            const res = await fetch(`${API_URL}/api/chart/machine?tanggal=${filters.tanggal}&no_mc=${filters.mesin}`, {
                  headers: {
                     'Authorization': `Bearer ${$auth.token}`,
                     'Content-Type': 'application/json'
@@ -43,7 +56,7 @@
             const data = await res.json();
             
             itemsProduced = "-";
-            const validItem = data.find((d: any) => d.extra_info && d.extra_info !== '- (-)');
+            const validItem = data.find((d: any) => d.extra_info && d.extra_info !== '- (-)' && d.extra_info !== '-');
             if (validItem) itemsProduced = validItem.extra_info;
 
             renderCharts(data);
@@ -54,273 +67,171 @@
         }
     }
 
-function renderCharts() {
-    const labels = chartData.map(d => d.jam_label);
-    const totalVals = chartData.map(d => d.nilai_total);
-    const ngVals = chartData.map(d => d.nilai_ng);
+    function renderCharts(data: any[]) {
+        const labels = data.map((d: any) => d.label); 
+        const totalVals = data.map((d: any) => d.actual); 
+        const okVals = data.map((d: any) => d.actual_ok); // Tambahan untuk Chart OK
+        const ngVals = data.map((d: any) => d.actual_ng); 
 
-    // --- CHART 1: Total Output (Vertical Bar) ---
-    if (chartTotal) chartTotal.destroy();
-    
-    // Tentukan target untuk Total Output (contoh: target 30 unit per jam)
-    const targetTotal = 30;
-    
-    chartTotal = new Chart(canvasTotal, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: 'Total Output',
-                    data: totalVals,
-                    backgroundColor: '#4f46e5',
-                    borderColor: '#4338ca',
-                    borderWidth: 1,
-                    borderRadius: 4,
-                    barPercentage: 0.7
-                },
-                {
-                    label: 'Target Output',
-                    type: 'line', // Garis target
-                    data: Array(labels.length).fill(targetTotal),
-                    borderColor: '#10b981',
-                    borderWidth: 2,
-                    borderDash: [5, 5],
-                    pointRadius: 0,
-                    fill: false,
-                    tension: 0
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: { 
-                    display: true, 
-                    text: `Grafik Total Output - Mesin ${filters.mesin}`,
-                    font: { size: 16, weight: 'bold' }
-                },
-                legend: {
-                    display: true,
-                    position: 'top',
-                    labels: {
-                        usePointStyle: true,
-                        padding: 20
+        // --- CHART 1: Total Output (Vertical Bar) ---
+        if (chartTotal) chartTotal.destroy();
+        const targetTotal = 30;
+        
+        chartTotal = new Chart(canvasTotal, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Total Output',
+                        data: totalVals,
+                        backgroundColor: '#4f46e5',
+                        borderColor: '#4338ca',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        barPercentage: 0.7
+                    },
+                    {
+                        label: 'Target Output',
+                        type: 'line',
+                        data: Array(labels.length).fill(targetTotal),
+                        borderColor: '#10b981',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        fill: false,
+                        tension: 0
                     }
-                },
-                tooltip: {
-                    mode: 'index',
-                    intersect: false,
-                    callbacks: {
-                        label: function(context) {
-                            let label = context.dataset.label || '';
-                            if (label) {
-                                label += ': ';
-                            }
-                            if (context.datasetIndex === 0) {
-                                label += context.raw + ' unit';
-                                // Tambahkan indikator target
-                                const diff = (context.raw as number) - targetTotal;
-                                if (diff >= 0) {
-                                    label += ` (${diff} di atas target)`;
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: { 
+                        display: true, 
+                        text: `Grafik Total Output - Mesin ${filters.mesin}`,
+                        font: { size: 16, weight: 'bold' }
+                    },
+                    legend: { display: true, position: 'top' },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) label += ': ';
+                                if (context.datasetIndex === 0) {
+                                    label += context.raw + ' unit';
+                                    const diff = (context.raw as number) - targetTotal;
+                                    label += diff >= 0 ? ` (+${diff})` : ` (${diff})`;
                                 } else {
-                                    label += ` (${Math.abs(diff)} di bawah target)`;
+                                    label += context.raw + ' unit';
                                 }
-                            } else {
-                                label += 'Target: ' + context.raw + ' unit';
-                            }
-                            return label;
-                        }
-                    }
-                },
-                annotation: {
-                    annotations: {
-                        targetLine: {
-                            type: 'line',
-                            yMin: targetTotal,
-                            yMax: targetTotal,
-                            borderColor: '#10b981',
-                            borderWidth: 2,
-                            borderDash: [5, 5],
-                            label: {
-                                content: `Target: ${targetTotal}`,
-                                position: 'end',
-                                backgroundColor: '#10b981',
-                                color: 'white',
-                                font: {
-                                    size: 12,
-                                    weight: 'bold'
-                                },
-                                padding: 6
+                                return label;
                             }
                         }
                     }
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: { 
-                        display: true, 
-                        text: 'Jumlah Output',
-                        font: { weight: 'bold' }
-                    },
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.1)'
-                    }
                 },
-                x: {
-                    title: { 
-                        display: true, 
-                        text: 'Jam Produksi',
-                        font: { weight: 'bold' }
-                    },
-                    grid: {
-                        display: false
-                    }
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: 'Output' } },
+                    x: { display: false }
                 }
-            },
-            interaction: {
-                intersect: false,
-                mode: 'index'
             }
-        }
-    });
+        });
 
-    // --- CHART 2: NG (Vertical Bar) ---
-    if (chartNG) chartNG.destroy();
-    
-    // Tentukan target untuk NG (contoh: maksimal 5 unit per jam)
-    const targetNG = 5;
-    
-    chartNG = new Chart(canvasNG, {
-        type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: 'Total NG',
-                    data: ngVals,
-                    backgroundColor: '#e11d48',
-                    borderColor: '#be123c',
-                    borderWidth: 1,
-                    borderRadius: 4,
-                    barPercentage: 0.7
-                },
-                {
-                    label: 'Target Maksimal NG',
-                    type: 'line', // Garis target
-                    data: Array(labels.length).fill(targetNG),
-                    borderColor: '#f59e0b',
-                    borderWidth: 2,
-                    borderDash: [5, 5],
-                    pointRadius: 0,
-                    fill: false,
-                    tension: 0
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                title: { 
-                    display: true, 
-                    text: `Grafik NG - Mesin ${filters.mesin}`,
-                    font: { size: 16, weight: 'bold' }
-                },
-                legend: {
-                    display: true,
-                    position: 'top',
-                    labels: {
-                        usePointStyle: true,
-                        padding: 20
+        // --- CHART 2: OK Output (Green) ---
+        // Perbaikan: Implementasi Chart OK
+        if (chartOK) chartOK.destroy();
+        
+        chartOK = new Chart(canvasOK, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Total OK',
+                        data: okVals,
+                        backgroundColor: '#10b981',
+                        borderColor: '#059669',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        barPercentage: 0.7
                     }
-                },
-                tooltip: {
-                    mode: 'index',
-                    intersect: false,
-                    callbacks: {
-                        label: function(context) {
-                            let label = context.dataset.label || '';
-                            if (label) {
-                                label += ': ';
-                            }
-                            if (context.datasetIndex === 0) {
-                                label += context.raw + ' unit';
-                                // Tambahkan indikator target
-                                const diff = (context.raw as number) - targetNG;
-                                if (diff <= 0) {
-                                    label += ` (${Math.abs(diff)} di bawah target)`;
-                                } else {
-                                    label += ` (${diff} di atas target)`;
-                                }
-                            } else {
-                                label += 'Target maksimal: ' + context.raw + ' unit';
-                            }
-                            return label;
-                        }
-                    }
-                },
-                annotation: {
-                    annotations: {
-                        targetLine: {
-                            type: 'line',
-                            yMin: targetNG,
-                            yMax: targetNG,
-                            borderColor: '#f59e0b',
-                            borderWidth: 2,
-                            borderDash: [5, 5],
-                            label: {
-                                content: `Target: ≤${targetNG}`,
-                                position: 'end',
-                                backgroundColor: '#f59e0b',
-                                color: 'white',
-                                font: {
-                                    size: 12,
-                                    weight: 'bold'
-                                },
-                                padding: 6
-                            }
-                        }
-                    }
-                }
+                ]
             },
-            scales: {
-                y: {
-                    beginAtZero: true,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
                     title: { 
                         display: true, 
-                        text: 'Jumlah NG',
-                        font: { weight: 'bold' }
-                    },
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.1)'
+                        text: `Grafik OK - Mesin ${filters.mesin}`,
+                        font: { size: 16, weight: 'bold' }
                     }
                 },
-                x: {
-                    title: { 
-                        display: true, 
-                        text: 'Jam Produksi',
-                        font: { weight: 'bold' }
-                    },
-                    grid: {
-                        display: false
-                    }
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: 'OK' } },
+                    x: { display: false }
                 }
-            },
-            interaction: {
-                intersect: false,
-                mode: 'index'
             }
-        }
-    });
-}
+        });
 
-  onMount(() => {
-      loadChartData();
-  });
+        // --- CHART 3: NG (Red) ---
+        if (chartNG) chartNG.destroy();
+        const targetNG = 5;
+        
+        chartNG = new Chart(canvasNG, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Total NG',
+                        data: ngVals,
+                        backgroundColor: '#e11d48',
+                        borderColor: '#be123c',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                        barPercentage: 0.7
+                    },
+                    {
+                        label: 'Max NG',
+                        type: 'line',
+                        data: Array(labels.length).fill(targetNG),
+                        borderColor: '#f59e0b',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        pointRadius: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    title: { 
+                        display: true, 
+                        text: `Grafik NG - Mesin ${filters.mesin}`,
+                        font: { size: 16, weight: 'bold' }
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true, title: { display: true, text: 'NG' } },
+                    x: { display: false }
+                }
+            }
+        });
+    }
+
+    // Perbaikan: Jalankan ulang jika filter tanggal berubah
+    $: if (filters.tanggal) {
+        loadChartData();
+    }
+
+    onMount(() => {
+        loadChartData();
+    });
 </script>
 
 <div class="p-6 max-w-7xl mx-auto space-y-6">
@@ -330,7 +241,6 @@ function renderCharts() {
     </div>
     <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap gap-4 items-end">
         <div>
-            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="block text-xs font-bold text-slate-500 mb-1">Tanggal</label>
             <input type="date" bind:value={filters.tanggal} class="px-3 py-2 border rounded-lg text-sm">
         </div>
@@ -357,7 +267,6 @@ function renderCharts() {
         </div>
     {:else}
         <div class="space-y-6">
-            
             <div class="bg-white p-4 rounded-xl shadow border border-blue-100">
                 <div class="h-[300px]">
                     <canvas bind:this={canvasTotal}></canvas>
@@ -377,7 +286,6 @@ function renderCharts() {
                     </div>
                 </div>
             </div>
-
         </div>
     {/if}
 </div>
