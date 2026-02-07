@@ -59,23 +59,20 @@
             // 1. Ambil Token
             const authToken = get(auth).token;
             if (!authToken) throw new Error("Token tidak ditemukan. Silakan login ulang.");
-
             // 2. Siapkan Payload untuk Backend (sesuai struct LWP / PerCycle)
             // Kita pakai endpoint LWP agar masuk ke tabel dashboard
             const payload = {
                 noMesin: lotDetail.machine,
                 tanggal: new Date().toISOString(),
                 shift: "I",
-                // nik: $auth.user?.username, // Backend otomatis ambil dari token
                 partName: lotDetail.product,
                 kodePart: "KPCP-STD",
                 jamMulai: lotDetail.startTime,
                 jamSelesai: "-",
-                hasilOk: 0, // Awal mulai 0
+                hasilOk: 0, 
                 ng: 0,
                 klasifikasiReject: ""
             };
-
             // 3. Kirim ke Backend
             const response = await fetch(`${API_URL}/api/lwp`, {
                 method: "POST",
