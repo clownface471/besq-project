@@ -25,7 +25,6 @@ func GetManagerOverview(c *gin.Context) {
 		GROUP BY t.proses
 	`
 
-	// PERBAIKAN: Gunakan database.MySQL (bukan database.DB)
 	if err := database.MySQL.Raw(query, tanggal).Scan(&results).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal ambil data manager: " + err.Error()})
 		return
@@ -53,7 +52,6 @@ func GetLeaderProcessView(c *gin.Context) {
 		ORDER BY t.noMC
 	`
 
-	// PERBAIKAN: Gunakan database.MySQL
 	if err := database.MySQL.Raw(query, tanggal, proses).Scan(&results).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal ambil data leader: " + err.Error()})
 		return
@@ -84,11 +82,12 @@ func GetMachineDetail(c *gin.Context) {
             ROUND(t.OK * (GREATEST(0, TIME_TO_SEC(TIMEDIFF(LEAST(t.SELESAI, MAKETIME(j.jam_angka + 1, 0, 0)), GREATEST(t.MULAI, MAKETIME(j.jam_angka, 0, 0))))) / NULLIF(TIME_TO_SEC(TIMEDIFF(t.SELESAI, t.MULAI)), 0))) AS allocated_ok,
             ROUND(t.NG * (GREATEST(0, TIME_TO_SEC(TIMEDIFF(LEAST(t.SELESAI, MAKETIME(j.jam_angka + 1, 0, 0)), GREATEST(t.MULAI, MAKETIME(j.jam_angka, 0, 0))))) / NULLIF(TIME_TO_SEC(TIMEDIFF(t.SELESAI, t.MULAI)), 0))) AS allocated_ng
         FROM vtrx_lwp_prs t
+        -- JOIN tetap pakai COLLATE agar aman antar kolom tabel
         LEFT JOIN v_stdlot s ON t.moldcode = s.moldCode COLLATE utf8mb4_unicode_ci
         CROSS JOIN jam_master j
         WHERE 
             t.tanggal = ? 
-            AND t.noMC = ? COLLATE utf8mb4_unicode_ci 
+            AND t.noMC = ? -- PERBAIKAN: HAPUS COLLATE DISINI
             AND t.MULAI < MAKETIME(j.jam_angka + 1, 0, 0) 
             AND t.SELESAI > MAKETIME(j.jam_angka, 0, 0)
     )
@@ -104,7 +103,6 @@ func GetMachineDetail(c *gin.Context) {
     ORDER BY jam_angka ASC;
 	`
 
-	// PERBAIKAN: Gunakan database.MySQL
 	if err := database.MySQL.Raw(query, tanggal, noMC).Scan(&results).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal ambil detail mesin: " + err.Error()})
 		return
