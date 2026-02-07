@@ -41,10 +41,10 @@ func ConnectDatabase() {
 	
 	// Ganti data di bawah ini sesuai Server Asli (HeidiSQL)
 	dbUser := "root"            // Username DB Server
-	dbPass := "am2bitnami"                // Password DB Server
-	dbHost := "192.168.1.230"     // IP Address Server (JANGAN localhost/127.0.0.1 jika via VPN)
+	dbPass := ""                // Password DB Server
+	dbHost := "192.168.x.x"     // IP Address Server (JANGAN localhost/127.0.0.1 jika via VPN)
 	dbPort := "3306"            // Port
-	dbName := "besq_prd"    // Nama Database di Server
+	dbName := "besq_factory"    // Nama Database di Server
 
 	// Format DSN
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local&allowNativePasswords=true&timeout=5s", 
