@@ -3,25 +3,48 @@
     import { page } from '$app/stores';
     import Chart from 'chart.js/auto';
     import { goto } from '$app/navigation';
+    // 1. IMPORT STORE AUTH
+    import { auth } from '$lib/stores/auth';
 
     let chartCanvas: HTMLCanvasElement;
     let chartInstance: Chart;
+    let isLoading = false;
     
     // Ambil parameter dari URL
     $: processName = $page.url.searchParams.get('process') || 'PRESSING';
     $: selectedDate = $page.url.searchParams.get('tanggal') || new Date().toISOString().split('T')[0];
 
+    // URL Backend
+    const API_URL = 'http://localhost:8080';
+
     async function fetchData() {
+        isLoading = true;
         try {
-            // Mapping nama proses dari frontend ke kode database jika perlu
+            // Mapping nama proses dari frontend ke kode database
             // Misal: "PRESSING" -> "PRS"
             let dbProcessCode = processName === 'PRESSING' ? 'PRS' : (processName === 'CUTTING' ? 'CUT' : processName);
 
-            const res = await fetch(`http://localhost:8080/api/chart/process?tanggal=${selectedDate}&proses=${dbProcessCode}`);
+            // 2. TAMBAHKAN HEADER AUTHORIZATION
+            const res = await fetch(`${API_URL}/api/chart/process?tanggal=${selectedDate}&proses=${dbProcessCode}`, {
+                headers: {
+                    'Authorization': `Bearer ${$auth.token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            // 3. HANDLING ERROR 401
+            if (res.status === 401) {
+                alert("Sesi habis. Silakan login ulang.");
+                goto('/');
+                return;
+            }
+
             const data = await res.json();
             updateChart(data);
         } catch (error) {
             console.error("Error fetching process data:", error);
+        } finally {
+            isLoading = false;
         }
     }
 
@@ -39,12 +62,14 @@
                         type: 'line', // Target enak dilihat sebagai garis batas
                         borderColor: 'black',
                         borderWidth: 2,
-                        pointRadius: 0
+                        pointRadius: 0,
+                        order: 0
                     },
                     {
                         label: 'Actual Output',
                         data: data.map(d => d.actual),
                         backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                        order: 1
                     }
                 ]
             },
@@ -57,13 +82,21 @@
                         // Drill Down: Pindah ke detail mesin per jam
                         goto(`/manager/mesin-detail?no_mc=${machineNo}&tanggal=${selectedDate}`);
                     }
+                },
+                scales: {
+                     y: { beginAtZero: true }
                 }
             }
         });
     }
 
     onMount(() => {
-        fetchData();
+        // Cek Token
+        if ($auth.token) {
+            fetchData();
+        } else {
+            goto('/');
+        }
     });
 </script>
 
@@ -75,6 +108,11 @@
         <p class="text-gray-600 mb-6">Tanggal: {selectedDate}</p>
 
         <div class="relative h-96 w-full">
+            {#if isLoading}
+                <div class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-10">
+                    <p class="text-lg font-semibold text-gray-600">Loading data...</p>
+                </div>
+            {/if}
             <canvas bind:this={chartCanvas}></canvas>
         </div>
         <p class="text-sm text-gray-500 mt-2">*Klik pada batang mesin untuk melihat detail per jam.</p>

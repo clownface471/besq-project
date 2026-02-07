@@ -2,6 +2,8 @@
     import { onMount } from 'svelte';
     import { page } from '$app/stores';
     import Chart from 'chart.js/auto';
+    import { auth } from '$lib/stores/auth'; // IMPORT AUTH
+    import { goto } from '$app/navigation';
 
     let chartCanvas: HTMLCanvasElement;
     let chartInstance: Chart;
@@ -9,14 +11,28 @@
     $: noMC = $page.url.searchParams.get('no_mc') || '';
     $: selectedDate = $page.url.searchParams.get('tanggal') || new Date().toISOString().split('T')[0];
     let itemsProduced = "";
+    
+    const API_URL = 'http://localhost:8080';
 
     async function fetchData() {
         if (!noMC) return;
         try {
-            const res = await fetch(`http://localhost:8080/api/chart/machine?tanggal=${selectedDate}&no_mc=${noMC}`);
+            // TAMBAHKAN HEADER AUTH
+            const res = await fetch(`${API_URL}/api/chart/machine?tanggal=${selectedDate}&no_mc=${noMC}`, {
+                 headers: {
+                    'Authorization': `Bearer ${$auth.token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (res.status === 401) {
+                alert("Sesi habis. Silakan login ulang.");
+                goto('/');
+                return;
+            }
+
             const data = await res.json();
             
-            // Ambil info item dari data pertama yang valid untuk ditampilkan di header
             const validItem = data.find((d: any) => d.extra_info && d.extra_info !== '- (-)');
             if (validItem) itemsProduced = validItem.extra_info;
 
@@ -39,7 +55,7 @@
                         data: data.map(d => d.target),
                         type: 'line',
                         borderColor: 'red',
-                        borderDash: [5, 5], // Garis putus-putus
+                        borderDash: [5, 5], 
                         borderWidth: 2,
                         pointRadius: 0,
                         order: 0
@@ -63,7 +79,6 @@
                 plugins: {
                     tooltip: {
                         callbacks: {
-                            // Menampilkan Nama Operator/Item di tooltip
                             afterLabel: function(context) {
                                 const index = context.dataIndex;
                                 return 'Info: ' + (data[index].extra_info || '-');
@@ -80,7 +95,11 @@
     }
 
     onMount(() => {
-        fetchData();
+        if ($auth.token) {
+            fetchData();
+        } else {
+            goto('/');
+        }
     });
 </script>
 
