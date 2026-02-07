@@ -2,17 +2,34 @@
     import { onMount } from 'svelte';
     import Chart from 'chart.js/auto';
     import { goto } from '$app/navigation';
+    // 1. IMPORT STORE AUTH
+    import { auth } from '$lib/stores/auth'; 
 
     let chartCanvas: HTMLCanvasElement;
     let chartInstance: Chart;
-    let selectedDate = new Date().toISOString().split('T')[0]; // Default Hari Ini
+    let selectedDate = new Date().toISOString().split('T')[0];
     let isLoading = false;
+    
+    // Pastikan URL sesuai dengan backend Anda (port 8080)
+    const API_URL = 'http://localhost:8080';
 
-    // Fetch Data dari API Backend
     async function fetchData() {
         isLoading = true;
         try {
-            const res = await fetch(`http://localhost:8080/api/chart/manager?tanggal=${selectedDate}`);
+            // 2. TAMBAHKAN HEADER AUTHORIZATION DISINI
+            const res = await fetch(`${API_URL}/api/chart/manager?tanggal=${selectedDate}`, {
+                headers: {
+                    'Authorization': `Bearer ${$auth.token}`, // Ambil token dari store
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (res.status === 401) {
+                alert("Sesi habis atau tidak ada izin. Silakan login ulang.");
+                goto('/'); // Redirect ke login jika 401
+                return;
+            }
+
             const data = await res.json();
             updateChart(data);
         } catch (error) {
@@ -22,14 +39,13 @@
         }
     }
 
-    // Render / Update Chart
     function updateChart(data: any[]) {
         if (chartInstance) chartInstance.destroy();
 
         chartInstance = new Chart(chartCanvas, {
             type: 'bar',
             data: {
-                labels: data.map(d => d.label), // e.g., ["CUTTING", "PRESSING"]
+                labels: data.map(d => d.label),
                 datasets: [
                     {
                         label: 'Target',
@@ -53,7 +69,6 @@
                     if (elements.length > 0) {
                         const index = elements[0].index;
                         const processName = data[index].label; 
-                        // Drill Down: Pindah ke halaman Leader/Proses
                         goto(`/manager/prs-ldr?process=${processName}&tanggal=${selectedDate}`);
                     }
                 },
@@ -65,7 +80,12 @@
     }
 
     onMount(() => {
-        fetchData();
+        // Cek apakah user punya token sebelum fetch
+        if ($auth.token) {
+            fetchData();
+        } else {
+            goto('/');
+        }
     });
 </script>
 
@@ -87,7 +107,9 @@
 
         <div class="relative h-96 w-full">
             {#if isLoading}
-                <p class="text-center mt-10">Loading data...</p>
+                <div class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-10">
+                    <p class="text-lg font-semibold text-gray-600">Loading data...</p>
+                </div>
             {/if}
             <canvas bind:this={chartCanvas}></canvas>
         </div>
