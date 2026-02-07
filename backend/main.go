@@ -41,7 +41,6 @@ admin := r.Group("/admin")
 		
 		admin.GET("/audit-logs", controllers.GetAuditLogs)
 		admin.POST("/work-order", controllers.CreateWorkOrder)
-		admin.POST("/chart-production", controllers.GetProductionChart)
 	}
 
 	// 4. GROUP PRODUKSI UMUM (Bisa diakses Admin & Semua Operator)
@@ -82,7 +81,27 @@ admin := r.Group("/admin")
 		api.POST("/lwp", controllers.CreateLWP)
 	}
 
-	
+	// -----------------------------------------------------------
+    // 6. GROUP CHART DASHBOARD (Drill Down System)
+    // -----------------------------------------------------------
+    chartApi := r.Group("/api/chart")
+    
+    // Middleware: Izinkan ADMIN (untuk testing), MANAGER, dan LEADER
+    // Pastikan role "MANAGER" dan "LEADER" nanti ada di tabel users jika ingin dipakai real
+    chartApi.Use(middleware.AuthAndRoleMiddleware("ADMIN", "MANAGER", "LEADER")) 
+    {
+        // Level 1: Manager melihat Overview semua Proses
+        // Usage: GET /api/chart/manager?tanggal=2026-02-01
+        chartApi.GET("/manager", controllers.GetManagerOverview)
+
+        // Level 2: Klik Proses -> Lihat Overview Mesin
+        // Usage: GET /api/chart/process?tanggal=2026-02-01&proses=PRS
+        chartApi.GET("/process", controllers.GetLeaderProcessView)
+
+        // Level 3: Klik Mesin -> Lihat Detail Per Jam
+        // Usage: GET /api/chart/machine?tanggal=2026-02-01&no_mc=04A
+        chartApi.GET("/machine", controllers.GetMachineDetail)
+    }
 
 	r.Run(":8080")
 }

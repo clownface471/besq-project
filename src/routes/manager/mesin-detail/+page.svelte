@@ -1,49 +1,58 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import Chart from 'chart.js/auto';
-  import { auth } from '$lib/stores/auth';
-  
-  const API_URL = "http://localhost:8080";
+    import { onMount, onDestroy } from 'svelte';
+    import { page } from '$app/stores';
+    import Chart from 'chart.js/auto';
+    import { auth } from '$lib/stores/auth';
+    import { goto } from '$app/navigation';
 
-  let canvasTotal: HTMLCanvasElement;
-  let canvasNG: HTMLCanvasElement;
-  let chartTotal: Chart;
-  let chartNG: Chart;
+    // Definisi Canvas untuk 3 Grafik
+    let canvasTotal: HTMLCanvasElement;
+    let canvasOK: HTMLCanvasElement;
+    let canvasNG: HTMLCanvasElement;
 
-  // Filter State
-  let filters = {
-    tanggal: new Date().toISOString().split('T')[0],
-    mesin: '11A',
-    shift: '1'
-  };
+    // Instance Chart
+    let chartTotal: Chart;
+    let chartOK: Chart;
+    let chartNG: Chart;
+    
+    $: noMC = $page.url.searchParams.get('no_mc') || '';
+    let selectedDate = $page.url.searchParams.get('tanggal') || new Date().toISOString().split('T')[0];
+    
+    let itemsProduced = "";
+    let isLoading = false;
+    
+    const API_URL = 'http://localhost:8080';
 
-  let chartData: any[] = [];
-  let isLoading = false;
+    async function fetchData() {
+        if (!noMC) return;
+        isLoading = true;
+        try {
+            const res = await fetch(`${API_URL}/api/chart/machine?tanggal=${selectedDate}&no_mc=${noMC}`, {
+                 headers: {
+                    'Authorization': `Bearer ${$auth.token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
 
-  function getDummyData() {
-    // Dummy data matching screenshot pattern
-    return [
-      { jam_label: '07:00', nilai_total: 27, nilai_ng: 6 },
-      { jam_label: '08:00', nilai_total: 0, nilai_ng: 0 },
-      { jam_label: '09:00', nilai_total: 36, nilai_ng: 0 },
-      { jam_label: '10:00', nilai_total: 36, nilai_ng: 0 },
-      { jam_label: '11:00', nilai_total: 18, nilai_ng: 0 },
-      { jam_label: '12:00', nilai_total: 0, nilai_ng: 0 }
-    ];
-  }
+            if (res.status === 401) {
+                alert("Sesi habis. Silakan login ulang.");
+                goto('/');
+                return;
+            }
 
-  async function loadChartData() {
-    isLoading = true;
-    try {
-      // Using dummy data for now
-      chartData = getDummyData();
-      renderCharts();
-    } catch (err) {
-      console.error("Error:", err);
-    } finally {
-      isLoading = false;
+            const data = await res.json();
+            
+            itemsProduced = "-";
+            const validItem = data.find((d: any) => d.extra_info && d.extra_info !== '- (-)');
+            if (validItem) itemsProduced = validItem.extra_info;
+
+            renderCharts(data);
+        } catch (error) {
+            console.error("Error fetching machine detail:", error);
+        } finally {
+            isLoading = false;
+        }
     }
-  }
 
 function renderCharts() {
     const labels = chartData.map(d => d.jam_label);
@@ -325,53 +334,50 @@ function renderCharts() {
             <label class="block text-xs font-bold text-slate-500 mb-1">Tanggal</label>
             <input type="date" bind:value={filters.tanggal} class="px-3 py-2 border rounded-lg text-sm">
         </div>
-        <div>
-            <!-- svelte-ignore a11y_label_has_associated_control -->
-            <label class="block text-xs font-bold text-slate-500 mb-1">Shift</label>
-            <select bind:value={filters.shift} class="px-3 py-2 border rounded-lg text-sm">
-                <option value="1">Shift 1 (07-15)</option>
-                <option value="2">Shift 2 (15-23)</option>
-                <option value="3">Shift 3 (23-07)</option>
-            </select>
-        </div>
-        <button on:click={loadChartData} class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-bold transition-colors">
-            {isLoading ? 'Loading...' : 'Tampilkan'}
-        </button>
-    </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 h-96">
-            <canvas bind:this={canvasTotal}></canvas>
-        </div>
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 h-96">
-            <canvas bind:this={canvasNG}></canvas>
+        <div class="bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-200 flex items-center gap-4 w-full md:w-auto">
+            <div>
+                <span class="text-xs text-gray-500 font-bold uppercase">Mesin</span>
+                <p class="text-xl font-bold text-blue-700">{noMC}</p>
+            </div>
+            <div class="h-8 w-px bg-gray-200"></div>
+            <div>
+                <span class="text-xs text-gray-500 font-bold uppercase">Item Aktif</span>
+                <p class="text-sm font-medium text-gray-800 truncate max-w-[200px]" title={itemsProduced}>{itemsProduced}</p>
+            </div>
         </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div class="p-4 bg-slate-50 border-b border-slate-100 font-bold text-slate-700">Tabel Data Detail</div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left">
-                <thead class="bg-slate-100 text-slate-600 font-bold text-xs uppercase">
-                    <tr>
-                        <th class="px-6 py-3">Jam</th>
-                        <th class="px-6 py-3 text-right">Nilai Total</th>
-                        <th class="px-6 py-3 text-right">Nilai NG</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                    {#each chartData as row}
-                        <tr class="hover:bg-slate-50">
-                            <td class="px-6 py-3 font-mono font-bold text-indigo-600">{row.jam_label}</td>
-                            <td class="px-6 py-3 text-right font-medium">{row.nilai_total}</td>
-                            <td class="px-6 py-3 text-right font-bold text-rose-600">{row.nilai_ng}</td>
-                        </tr>
-                    {/each}
-                    {#if chartData.length === 0}
-                        <tr><td colspan="3" class="px-6 py-8 text-center text-slate-400">Tidak ada data.</td></tr>
-                    {/if}
-                </tbody>
-            </table>
+    {#if isLoading}
+        <div class="flex justify-center items-center h-64 bg-white rounded-lg shadow">
+            <div class="text-center">
+                <i class="fa-solid fa-spinner animate-spin text-4xl text-blue-500"></i>
+                <p class="mt-4 text-gray-500 font-medium">Memuat data grafik...</p>
+            </div>
         </div>
-    </div>
+    {:else}
+        <div class="space-y-6">
+            
+            <div class="bg-white p-4 rounded-xl shadow border border-blue-100">
+                <div class="h-[300px]">
+                    <canvas bind:this={canvasTotal}></canvas>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white p-4 rounded-xl shadow border border-green-100">
+                    <div class="h-[300px]">
+                        <canvas bind:this={canvasOK}></canvas>
+                    </div>
+                </div>
+
+                <div class="bg-white p-4 rounded-xl shadow border border-red-100">
+                    <div class="h-[300px]">
+                        <canvas bind:this={canvasNG}></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    {/if}
 </div>

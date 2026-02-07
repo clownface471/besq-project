@@ -7,7 +7,13 @@
 import annotationPlugin from 'chartjs-plugin-annotation';
 Chart.register(annotationPlugin);
 
-	const API_URL = 'http://localhost:8080';
+    let chartCanvas: HTMLCanvasElement;
+    let chartInstance: Chart;
+    let selectedDate = new Date().toISOString().split('T')[0];
+    let isLoading = false;
+    
+    // Pastikan URL sesuai dengan backend Anda (port 8080)
+    const API_URL = 'http://localhost:8080';
 
 	let dashboardData = {
 		mixing: { total: 0, pending: 0, completed: 0 },
@@ -379,9 +385,3 @@ Chart.register(annotationPlugin);
 		{/if}
 	</div>
 </div>
-
-<style>
-	:global(body) {
-		background-color: #f8fafc;
-	}
-</style>
