@@ -51,7 +51,7 @@ func GetManagerOverview(c *gin.Context) {
 
 // --- LEVEL 2: LEADER VIEW (Overview Per Mesin) ---
 func GetLeaderProcessView(c *gin.Context) {
-
+	// Cek koneksi sebelum query
 	if !isDBConnected(c) {
 		return
 	}
@@ -61,11 +61,13 @@ func GetLeaderProcessView(c *gin.Context) {
 
 	var results []models.ChartSeries
 
+	// PERBAIKAN: Menambahkan 'actual_ng' pada SELECT
 	query := `
 		SELECT 
 			t.noMC AS label,
 			COALESCE(SUM((TIME_TO_SEC(TIMEDIFF(t.SELESAI, t.MULAI)) / 3600.0) * s.tgtQtyPJam), 0) AS target,
-			COALESCE(SUM(t.Total), 0) AS actual
+			COALESCE(SUM(t.Total), 0) AS actual,
+			COALESCE(SUM(t.NG), 0) AS actual_ng
 		FROM vtrx_lwp_prs t
 		LEFT JOIN v_stdlot s ON t.moldcode = s.moldCode COLLATE utf8mb4_unicode_ci
 		WHERE t.tanggal = ? AND t.proses = ?
