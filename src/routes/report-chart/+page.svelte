@@ -269,7 +269,9 @@
 
     function handleDetailClick(divisionId: string) {
         if (divisionId === 'pressing') {
-            goto('/manager/prs-ldr');
+            goto('/leader'); 
+        } else {
+             goto(`/report-chart/line?division=${divisionId}`);
         }
     }
 
