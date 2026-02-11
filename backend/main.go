@@ -72,6 +72,8 @@ admin := r.Group("/admin")
 		"ADMIN", "admin", 
 		"OPERATOR_CUTTING", "cutting", 
 		"OPERATOR_PRESSING", "pressing",
+		"MANAGER", "manager",  
+		"LEADER", "leader",
 	)) 
 	{
 		api.GET("/users/profile", controllers.GetUserProfile)

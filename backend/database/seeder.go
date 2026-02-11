@@ -25,6 +25,16 @@ func SeedUsers() {
 			Password: "user123",
 			Role:     "OPERATOR_PRESSING",
 		},
+		{
+			Username: "manager",
+			Password: "user123",
+			Role:     "MANAGER", 
+		},
+        {
+			Username: "leader",  
+			Password: "user123",
+			Role:     "LEADER",  
+		},
 	}
 
 	for _, u := range users {

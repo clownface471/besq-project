@@ -20,11 +20,12 @@
         "/report-chart": [ROLES.ADMIN, ROLES.MANAGER], 
 
         // Layer 2: Line Overview (Manager & Team Leader)
-        // Note: Logic below allows Manager to inherit access, but we list explicit permissions here
-        "/report-chart/line": [ROLES.ADMIN, ROLES.MANAGER, ROLES.TEAM_LEADER],
+        // UPDATE: Arahkan ke folder '/leader'
+        "/leader": [ROLES.ADMIN, ROLES.MANAGER, ROLES.TEAM_LEADER],
 
         // Layer 3: Detail (Manager, Team Leader, Operator)
-        "/report-chart/detail": [ROLES.ADMIN, ROLES.MANAGER, ROLES.TEAM_LEADER, ROLES.OPERATOR],
+        // UPDATE: Arahkan ke folder '/leader/mc-detail'
+        "/leader/mc-detail": [ROLES.ADMIN, ROLES.MANAGER, ROLES.TEAM_LEADER, ROLES.OPERATOR],
 
         // Other routes
         "/admin": [ROLES.ADMIN],
@@ -58,15 +59,14 @@
         }
 
         if (user) {
-            // Strict Hierarchy Check for Report Chart
-            if (pathname.startsWith('/report-chart')) {
+            // Strict Hierarchy Check for Report Chart / Leader
+            if (pathname.startsWith('/report-chart') || pathname.startsWith('/leader')) {
                  // Check specific sub-paths first (Deepest to Shallowest)
-                 if (pathname.includes('/detail')) {
+                 if (pathname.includes('/mc-detail')) { // Layer 3
                     checkAccess([ROLES.ADMIN, ROLES.MANAGER, ROLES.TEAM_LEADER, ROLES.OPERATOR], user.role);
-                 } else if (pathname.includes('/line')) {
+                 } else if (pathname.startsWith('/leader')) { // Layer 2
                     checkAccess([ROLES.ADMIN, ROLES.MANAGER, ROLES.TEAM_LEADER], user.role);
-                 } else {
-                    // Root /report-chart
+                 } else { // Layer 1 (Report Chart Root)
                     checkAccess([ROLES.ADMIN, ROLES.MANAGER], user.role);
                  }
             } else {
@@ -85,7 +85,7 @@
     });
 
     function checkAccess(allowedRoles: string[], userRole: string) {
-        // Helper to handle partial matches (e.g. "OPERATOR_PRESSING" contains "OPERATOR")
+        // Helper to handle partial matches
         const hasAccess = allowedRoles.includes(userRole) || allowedRoles.some(r => userRole.includes(r));
         
         if (!hasAccess) {
@@ -107,7 +107,7 @@
     function redirectBasedOnRole(role: string) {
         if (role === ROLES.ADMIN) window.location.href = '/admin';
         else if (role === ROLES.MANAGER) window.location.href = '/report-chart'; // Layer 1
-        else if (role === ROLES.TEAM_LEADER) window.location.href = '/report-chart/line'; // Layer 2
+        else if (role === ROLES.TEAM_LEADER) window.location.href = '/leader';   // Layer 2 (UPDATE)
         else if (role.includes(ROLES.OPERATOR)) window.location.href = '/oprator'; // Portal
         else window.location.href = '/';
     }
@@ -170,8 +170,8 @@
                 {/if}
 
                 {#if [ROLES.ADMIN, ROLES.MANAGER, ROLES.TEAM_LEADER].includes($auth.user?.role || '')}
-                     <a href="/report-chart/line" class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-50 font-medium"
-                       class:text-indigo-600={$page.url.pathname.includes('/report-chart/line')} class:bg-indigo-50={$page.url.pathname.includes('/report-chart/line')}>
+                     <a href="/leader" class="flex items-center gap-3 px-4 py-3 rounded-lg text-slate-600 hover:bg-slate-50 font-medium"
+                       class:text-indigo-600={$page.url.pathname.includes('/leader')} class:bg-indigo-50={$page.url.pathname.includes('/leader')}>
                         <i class="fa-solid fa-industry w-5 text-center"></i>
                         Line Status
                     </a>
@@ -197,7 +197,6 @@
 {/if}
 
 <style>
-    /* Styling scrollbar halus untuk sidebar */
     nav::-webkit-scrollbar { width: 4px; }
     nav::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
 </style>

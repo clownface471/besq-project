@@ -31,21 +31,18 @@
   async function loadChartData() {
     isLoading = true;
     try {
-      // 2. Fetch Data Real dari Backend
-      // Pastikan endpoint backend sudah sesuai router Go Anda
-      const res = await fetch(`/api/chart/machine-detail?tanggal=${filters.tanggal}&no_mc=${filters.mesin}`, {
+      // PERBAIKAN: Ubah 'machine-detail' menjadi 'machine' sesuai main.go
+      const res = await fetch(`/api/chart/machine?tanggal=${filters.tanggal}&no_mc=${filters.mesin}`, {
           headers: { Authorization: `Bearer ${$auth.token}` }
       });
 
       if (res.ok) {
           chartData = await res.json();
-          // Validasi jika data null
           if (!chartData) chartData = [];
           renderCharts();
       } else {
-          console.error("Gagal load data");
+          console.error("Gagal load data, status:", res.status);
           chartData = [];
-          // Tetap render grafik kosong biar canvas bersih
           renderCharts();
       }
     } catch (err) {
