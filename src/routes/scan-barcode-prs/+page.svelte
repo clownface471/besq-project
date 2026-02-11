@@ -133,13 +133,13 @@
 
       const currentTime = new Date().toLocaleTimeString('id-ID');
       
-<<<<<<< HEAD
+
       // Simpan data ke localStorage sebelum redirect 
       localStorage.setItem('selectedLot', scannedData);
-=======
+
       localStorage.setItem('selectedLot', lotNo);
       localStorage.setItem('selectedProduct', productCode); 
->>>>>>> ca9b029e240f91b16c92d31b59f4d4d035ea07cb
+
       localStorage.setItem('scanTime', currentTime);
       
       successMessage = `Scan Berhasil!`;
@@ -152,19 +152,18 @@
 
   function handleBack() {
     stopCamera();
-<<<<<<< HEAD
-<<<<<<< HEAD:src/routes/barcode/+page.svelte
-    window.location.href = '/cutting';
-=======
-    window.location.href = '/pressing';
->>>>>>> a1d43feec433a0361748632a0b5fce12d4acc101:src/routes/scan-barcode-prs/+page.svelte
-=======
-    goto('/pressing');
+
+window.location.href = '/cutting';
+
+window.location.href = '/pressing';
+
+
+goto('/pressing');
   }
 
   function handleManualSubmit() {
       if (scannedData) handleScan();
->>>>>>> ca9b029e240f91b16c92d31b59f4d4d035ea07cb
+
   }
 
   onMount(() => {
@@ -184,12 +183,12 @@
     }
   });
 
-<<<<<<< HEAD
-=======
+
+
   onDestroy(() => {
     stopCamera();
   });
->>>>>>> ca9b029e240f91b16c92d31b59f4d4d035ea07cb
+
 </script>
 
 <div class="min-h-screen bg-slate-900 text-white pb-6 relative overflow-hidden">

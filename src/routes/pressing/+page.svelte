@@ -172,6 +172,10 @@
      goto("/scan-barcode-prs"); // HAPUS alert, ganti dengan ini
   }
 
+  function handleInputLWP() {
+     goto("/lwp-setup"); // HAPUS alert, ganti dengan ini
+  }
+
   // --- FUNGSI BARU: RECORD CYCLE ---
   async function handleRecordCycle(machine: any) {
     const authToken = get(auth).token;
@@ -260,7 +264,6 @@
 <div class="min-h-screen bg-slate-50 font-sans text-slate-800 pb-12 relative selection:bg-indigo-100 selection:text-indigo-800">
   <div class="absolute inset-0 z-0 opacity-[0.03] pointer-events-none" style="background-image: radial-gradient(#4f46e5 1px, transparent 1px); background-size: 24px 24px;"></div>
 
-<<<<<<< HEAD
   <header class="sticky top-0 md:static z-50 transition-all duration-300">
     <div
       class="bg-white/80 backdrop-blur-md md:bg-transparent border-b border-slate-200 md:border-none shadow-sm md:shadow-none"
@@ -297,7 +300,7 @@
         </div>
 
         <button
-          onclick={handleLogout}
+         
           class="group relative overflow-hidden px-4 py-2 md:px-5 md:py-2.5 rounded-xl transition-all duration-300
                        bg-white border border-slate-200 text-slate-600 hover:text-rose-600 hover:border-rose-200 hover:shadow-lg
                        md:bg-white/10 md:border-white/20 md:text-white md:hover:bg-white/20"
@@ -370,19 +373,13 @@
     </button>
   </div>
 
-=======
->>>>>>> a1d43feec433a0361748632a0b5fce12d4acc101
   <main
     class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:mt-6 relative z-10 space-y-6"
   >
     <div
       class="bg-white rounded-2xl shadow-md border border-slate-100 overflow-visible group hover:shadow-lg transition-all duration-500 mx-auto w-full"
     >
-=======
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:mt-6 relative z-10 space-y-6">
-    
-    <div class="bg-white rounded-2xl shadow-md border border-slate-100 overflow-visible group hover:shadow-lg transition-all duration-500 mx-auto w-full">
->>>>>>> ca9b029e240f91b16c92d31b59f4d4d035ea07cb
+
       <div class="p-6 md:p-10">
         <div class="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start">
           <div class="relative shrink-0 -mt-16 md:-mt-8 group-hover:-translate-y-2 transition-transform duration-500">
