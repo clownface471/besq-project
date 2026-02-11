@@ -1,9 +1,11 @@
 <script context="module" lang="ts">
-  declare const jsQR: (data: Uint8ClampedArray, width: number, height: number) => any;
+  // UPDATE: Tambahkan 'options?: any' agar tidak merah saat dikasih argumen ke-4
+  declare const jsQR: (data: Uint8ClampedArray, width: number, height: number, options?: any) => any;
 </script>
 
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
+  import { goto } from '$app/navigation';
 
   let videoElement: HTMLVideoElement;
   let canvasElement: HTMLCanvasElement;
@@ -12,333 +14,303 @@
   let errorMessage = '';
   let successMessage = '';
   let scanningActive = false;
+  let animationFrameId: any;
+  let stream: MediaStream | null = null;
 
   async function startCamera() {
     try {
       errorMessage = '';
-      const stream = await navigator.mediaDevices.getUserMedia({
+      stream = await navigator.mediaDevices.getUserMedia({
         video: { 
-          facingMode: 'environment',
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
+          facingMode: 'environment', // Kamera belakang
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
         }
       });
+      
       if (videoElement) {
         videoElement.srcObject = stream;
-        cameraActive = true;
-        scanningActive = true;
-        startQRCodeScanning();
+        videoElement.onloadedmetadata = () => {
+             videoElement.play().then(() => {
+                 cameraActive = true;
+                 scanningActive = true;
+                 startQRCodeScanning();
+             });
+        };
       }
     } catch (err) {
-      errorMessage = 'Gagal mengakses kamera. Pastikan Anda memberikan izin akses.';
+      errorMessage = 'Gagal mengakses kamera. Pastikan izin kamera diberikan.';
       console.error('Camera error:', err);
     }
   }
 
   function stopCamera() {
-    if (videoElement?.srcObject) {
-      const tracks = (videoElement.srcObject as MediaStream).getTracks();
-      tracks.forEach(track => track.stop());
-      cameraActive = false;
-      scanningActive = false;
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      stream = null;
     }
+    if (videoElement) {
+        videoElement.srcObject = null;
+    }
+    if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+    }
+    cameraActive = false;
+    scanningActive = false;
   }
 
   function startQRCodeScanning() {
-    if (!scanningActive || !cameraActive) return;
-
+    if (!scanningActive || !cameraActive || !canvasElement || !videoElement) return;
+    
     const canvas = canvasElement;
-    const video = videoElement;
-    const context = canvas.getContext('2d');
+    const context = canvas.getContext('2d', { willReadFrequently: true });
 
     if (!context) return;
 
     const scan = () => {
-      if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      if (!scanningActive) return;
+
+      if (videoElement.readyState === videoElement.HAVE_ENOUGH_DATA) {
+        canvas.width = videoElement.videoWidth;
+        canvas.height = videoElement.videoHeight;
+        
+        context.drawImage(videoElement, 0, 0, canvas.width, canvas.height);
 
         try {
           const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-          const code = jsQR(imageData.data, imageData.width, imageData.height);
-
-          if (code) {
-            scannedData = code.data;
-            handleScan();
-            scanningActive = false;
-            return;
+          // @ts-ignore - jsQR dimuat via CDN
+          if (typeof jsQR !== 'undefined') {
+              const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                  inversionAttempts: "dontInvert",
+              });
+    
+              if (code && code.data) {
+                drawQuad(code.location, context);
+                scannedData = code.data;
+                handleScan();
+                return; 
+              }
           }
         } catch (err) {
           console.error('QR Code scanning error:', err);
         }
       }
 
-      if (scanningActive) {
-        requestAnimationFrame(scan);
-      }
+      animationFrameId = requestAnimationFrame(scan);
     };
 
-    requestAnimationFrame(scan);
+    animationFrameId = requestAnimationFrame(scan);
+  }
+  
+  function drawQuad(location: any, ctx: CanvasRenderingContext2D) {
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "#4f46e5"; 
+      ctx.beginPath();
+      ctx.moveTo(location.topLeftCorner.x, location.topLeftCorner.y);
+      ctx.lineTo(location.topRightCorner.x, location.topRightCorner.y);
+      ctx.lineTo(location.bottomRightCorner.x, location.bottomRightCorner.y);
+      ctx.lineTo(location.bottomLeftCorner.x, location.bottomLeftCorner.y);
+      ctx.lineTo(location.topLeftCorner.x, location.topLeftCorner.y);
+      ctx.stroke();
   }
 
   function handleScan() {
     if (scannedData.trim()) {
+      scanningActive = false; 
+
+      let rawString = scannedData.trim();
+      rawString = rawString.replace(/^\[|\]$/g, '');
+      
+      const parts = rawString.split(';');
+      
+      let productCode = 'KPCP Standard'; 
+      let lotNo = rawString;             
+
+      if (parts.length >= 2) {
+          productCode = parts[0].trim();
+          lotNo = parts[1].trim();
+      }
+
       const currentTime = new Date().toLocaleTimeString('id-ID');
       
+<<<<<<< HEAD
       // Simpan data ke localStorage sebelum redirect 
       localStorage.setItem('selectedLot', scannedData);
+=======
+      localStorage.setItem('selectedLot', lotNo);
+      localStorage.setItem('selectedProduct', productCode); 
+>>>>>>> ca9b029e240f91b16c92d31b59f4d4d035ea07cb
       localStorage.setItem('scanTime', currentTime);
       
-      successMessage = `Lot ${scannedData} berhasil discan!`;
+      successMessage = `Scan Berhasil!`;
       
-      // Redirect ke halaman detail setelah 1 detik
       setTimeout(() => {
-        window.location.href = `/kpcp-detail?lot=${encodeURIComponent(scannedData)}`;
+        goto(`/kpcp-detail?lot=${encodeURIComponent(lotNo)}`);
       }, 1000);
-      
-      scannedData = '';
     }
   }
 
   function handleBack() {
     stopCamera();
+<<<<<<< HEAD
 <<<<<<< HEAD:src/routes/barcode/+page.svelte
     window.location.href = '/cutting';
 =======
     window.location.href = '/pressing';
 >>>>>>> a1d43feec433a0361748632a0b5fce12d4acc101:src/routes/scan-barcode-prs/+page.svelte
+=======
+    goto('/pressing');
+  }
+
+  function handleManualSubmit() {
+      if (scannedData) handleScan();
+>>>>>>> ca9b029e240f91b16c92d31b59f4d4d035ea07cb
   }
 
   onMount(() => {
-    // Load jsQR library
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
-    script.onload = () => {
-      startCamera();
-    };
-    document.head.appendChild(script);
-
-    return () => {
-      stopCamera();
-    };
+    if (!document.getElementById('jsqr-script')) {
+        const script = document.createElement('script');
+        script.id = 'jsqr-script';
+        script.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+        script.onload = () => {
+          startCamera();
+        };
+        script.onerror = () => {
+            errorMessage = "Gagal memuat library QR Scanner. Cek koneksi internet.";
+        };
+        document.head.appendChild(script);
+    } else {
+        startCamera();
+    }
   });
 
+<<<<<<< HEAD
+=======
+  onDestroy(() => {
+    stopCamera();
+  });
+>>>>>>> ca9b029e240f91b16c92d31b59f4d4d035ea07cb
 </script>
 
-<div class="min-h-screen bg-white text-slate-800 pb-6 relative">
+<div class="min-h-screen bg-slate-900 text-white pb-6 relative overflow-hidden">
   
-  <!-- Header -->
-  <header class="sticky top-0 z-50 bg-white border-b border-slate-200 shadow-sm">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-      <div class="flex items-center gap-3">
-        <!-- svelte-ignore a11y_consider_explicit_label -->
-        <button on:click={handleBack}
-          class="group p-2 hover:bg-slate-100 rounded-lg transition-colors">
-          <svg class="w-6 h-6 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <header class="absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-black/80 to-transparent p-4">
+    <div class="max-w-md mx-auto flex justify-between items-center">
+      <button 
+        on:click={handleBack} 
+        aria-label="Kembali ke Dashboard"
+        class="p-2 bg-white/10 backdrop-blur-md rounded-full hover:bg-white/20 transition-all">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
-        </button>
-        <div>
-          <h1 class="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">Scan Barcode KPCP</h1>
-          <p class="text-xs md:text-sm text-slate-500">Arahkan kamera ke barcode atau QR code lot</p>
-        </div>
+      </button>
+      <div class="text-center">
+        <h1 class="text-lg font-bold tracking-wide">Scan QR KPCP</h1>
+        <p class="text-xs text-slate-300">Format: [Produk;NoLot]</p>
       </div>
-      <div class="text-right">
-        <p class="text-sm text-slate-500">{new Date().toLocaleTimeString('id-ID')}</p>
-      </div>
+      <div class="w-10"></div> 
     </div>
   </header>
 
-  <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 space-y-6">
+  <main class="h-screen flex flex-col items-center justify-center relative">
     
-    <!-- Camera Section -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      
-      <!-- Video Feed -->
-      <div class="lg:col-span-2">
-        <div class="relative bg-black rounded-2xl overflow-hidden shadow-xl border-2 border-slate-200">
-          <!-- svelte-ignore element_invalid_self_closing_tag -->
-          <video
+    <div class="absolute inset-0 z-0 bg-black">
+         <video
             bind:this={videoElement}
             autoplay
             playsinline
-            class="w-full h-auto aspect-video object-cover"
-          />
-          <!-- svelte-ignore element_invalid_self_closing_tag -->
-          <canvas bind:this={canvasElement} class="hidden" />
-          
-          <!-- Scanner Frame Overlay -->
-          <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div class="relative w-72 h-72">
-              <!-- Corner marks -->
-              <div class="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-indigo-500"></div>
-              <div class="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-indigo-500"></div>
-              <div class="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-indigo-500"></div>
-              <div class="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-indigo-500"></div>
-              
-              <!-- Scanning line animation -->
-              <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-red-500 to-transparent animate-pulse"></div>
-              
-              <!-- Center circle for QR Code -->
-              <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-16 h-16 border-2 border-indigo-400 rounded-full opacity-50"></div>
-            </div>
-          </div>
+            class="w-full h-full object-cover"
+          ></video>
+         <canvas bind:this={canvasElement} class="hidden"></canvas>
+    </div>
 
-          <!-- Status indicator -->
-          <div class="absolute top-4 right-4 flex items-center gap-2 bg-black/50 px-3 py-2 rounded-full">
-            <div class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-            <span class="text-xs font-medium text-white">LIVE</span>
-          </div>
+    <div class="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/50 mask-scan"></div>
+        
+        <div class="relative w-72 h-72 border-2 border-white/50 rounded-3xl overflow-hidden">
+            <div class="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-indigo-500 rounded-tl-lg"></div>
+            <div class="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-indigo-500 rounded-tr-lg"></div>
+            <div class="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-indigo-500 rounded-bl-lg"></div>
+            <div class="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-indigo-500 rounded-br-lg"></div>
+            
+            {#if scanningActive}
+                <div class="absolute top-0 left-0 right-0 h-1 bg-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.8)] animate-scan-line"></div>
+            {/if}
 
-          <!-- Scanning indicator -->
-          {#if scanningActive}
-            <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-full">
-              <div class="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-              <span class="text-xs font-semibold">Scanning...</span>
-            </div>
-          {/if}
+            {#if !cameraActive && !errorMessage}
+               <div class="absolute inset-0 flex items-center justify-center">
+                   <svg class="animate-spin h-10 w-10 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                   </svg>
+               </div>
+            {/if}
         </div>
+        
+        <p class="absolute mt-80 text-white/80 text-sm font-medium animate-pulse">
+            Arahkan kamera ke QR Code
+        </p>
+    </div>
 
+    <div class="absolute bottom-0 left-0 right-0 z-20 p-6 bg-gradient-to-t from-slate-900 via-slate-900/90 to-transparent">
+        
         {#if successMessage}
-          <div class="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-3 animate-pulse">
-            <svg class="w-5 h-5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-            <span class="text-sm text-emerald-800 font-medium">{successMessage}</span>
-            <span class="text-xs text-emerald-600 ml-auto">Mengalihkan...</span>
+          <div class="mb-4 p-4 bg-emerald-500/20 backdrop-blur-md border border-emerald-500/50 rounded-xl flex items-center gap-3 animate-bounce-in">
+            <div class="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+            </div>
+            <div>
+                <h3 class="font-bold text-emerald-100">Scan Berhasil!</h3>
+                <p class="text-xs text-emerald-200">{scannedData.replace(';', ' | ')}</p>
+            </div>
           </div>
         {/if}
 
         {#if errorMessage}
-          <div class="mt-4 p-4 bg-rose-50 border border-rose-200 rounded-lg flex items-center gap-3">
-            <svg class="w-5 h-5 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span class="text-sm text-rose-800 font-medium">{errorMessage}</span>
+          <div class="mb-4 p-4 bg-rose-500/20 backdrop-blur-md border border-rose-500/50 rounded-xl flex items-center gap-3">
+            <svg class="w-6 h-6 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span class="text-sm text-rose-100 font-medium">{errorMessage}</span>
           </div>
         {/if}
-      </div>
 
-      <!-- Input & Controls Panel -->
-      <div class="lg:col-span-1 space-y-4">
-        
-        <!-- QR Code Info Card -->
-        <div class="bg-blue-50 rounded-2xl p-6 border border-blue-200">
-          <h3 class="font-bold text-lg mb-3 flex items-center gap-2 text-blue-900">
-            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
-            Cara Menggunakan
-          </h3>
-          <ul class="text-sm text-blue-800 space-y-2">
-            <li class="flex gap-2">
-              <span class="font-bold">1.</span>
-              <span>Arahkan kamera ke QR code lot</span>
-            </li>
-            <li class="flex gap-2">
-              <span class="font-bold">2.</span>
-              <span>Tunggu scanning otomatis selesai</span>
-            </li>
-            <li class="flex gap-2">
-              <span class="font-bold">3.</span>
-              <span>Atau input manual jika diperlukan</span>
-            </li>
-          </ul>
+        <div class="bg-slate-800/80 backdrop-blur-md rounded-2xl p-2 border border-slate-700">
+             <div class="flex gap-2">
+                 <input 
+                    type="text" 
+                    bind:value={scannedData}
+                    placeholder="Input manual (Kode;Lot)..." 
+                    class="flex-1 bg-transparent border-none text-white placeholder-slate-500 focus:ring-0 px-4 py-2"
+                    on:keydown={(e) => e.key === 'Enter' && handleManualSubmit()}
+                 />
+                 <button 
+                    on:click={handleManualSubmit}
+                    disabled={!scannedData}
+                    aria-label="Submit Manual Input"
+                    class="bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-600 text-white p-2 rounded-xl transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+                 </button>
+             </div>
         </div>
-
-        <!-- Manual Input Card -->
-        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-          <h3 class="font-bold text-lg mb-4 flex items-center gap-2 text-slate-800">
-            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            Input Manual
-          </h3>
-          
-          <div class="space-y-3">
-            <input
-              type="text"
-              bind:value={scannedData}
-              placeholder="Masukkan No. Lot"
-              class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 transition-all"
-              on:keydown={(e) => {
-                if (e.key === 'Enter') handleScan();
-              }}
-            />
-            
-            <button
-              on:click={handleScan}
-              disabled={successMessage !== ''}
-              class="w-full px-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed rounded-lg font-semibold transition-colors flex items-center justify-center gap-2 text-white"
-            >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-              </svg>
-              Tambah Scan
-            </button>
-          </div>
-        </div>
-
-        <!-- Camera Controls Card -->
-        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-          <h3 class="font-bold text-lg mb-4 flex items-center gap-2 text-slate-800">
-            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-            </svg>
-            Kontrol Kamera
-          </h3>
-          
-          <div class="space-y-2">
-            <button
-              on:click={startCamera}
-              disabled={cameraActive}
-              class="w-full px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed rounded-lg font-medium transition-colors text-sm text-white"
-            >
-              Mulai Kamera
-            </button>
-            <button
-              on:click={stopCamera}
-              disabled={!cameraActive}
-              class="w-full px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 disabled:cursor-not-allowed rounded-lg font-medium transition-colors text-sm text-white"
-            >
-              Hentikan Kamera
-            </button>
-          </div>
-        </div>
-
-        <!-- Status Card -->
-        <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm">
-          <div class="space-y-3">
-            <div class="flex items-baseline gap-2">
-              <span class="text-sm text-slate-600 font-medium">Kamera:</span>
-              <span class={`px-3 py-1 rounded-full text-sm font-semibold ${cameraActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}>
-                {cameraActive ? 'Aktif' : 'Tidak Aktif'}
-              </span>
-            </div>
-            <div class="flex items-baseline gap-2">
-              <span class="text-sm text-slate-600 font-medium">Scanning:</span>
-              <span class={`px-3 py-1 rounded-full text-sm font-semibold ${scanningActive ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}>
-                {scanningActive ? 'Aktif' : 'Siaga'}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
+
   </main>
 </div>
 
 <style>
-  :global(body) {
-    background-color: #ffffff;
+  @keyframes scan-line {
+      0% { top: 0%; opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { top: 100%; opacity: 0; }
   }
-
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
+  .animate-scan-line {
+      animation: scan-line 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   }
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+  .animate-bounce-in {
+      animation: bounce-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+  }
+  @keyframes bounce-in {
+      0% { transform: translateY(20px); opacity: 0; }
+      100% { transform: translateY(0); opacity: 1; }
   }
 </style>

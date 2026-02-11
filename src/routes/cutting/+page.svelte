@@ -482,7 +482,7 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 stroke-width="2"
-                d="M13 10V3L4 14h7v7l9-11h-7z"
+                d="M13 10V3L4 14h7v7l9-11h-7z"  
               /></svg
             >
           </div>
@@ -574,7 +574,7 @@
                   <div class="mt-2 text-center">
                     <p class="text-xs font-bold text-slate-600">{day.short}</p>
                     <p class="text-[10px] text-slate-400 font-mono mt-0.5">
-                      {day.actual}L
+                      {day.actual}
                     </p>
                   </div>
                 </div>

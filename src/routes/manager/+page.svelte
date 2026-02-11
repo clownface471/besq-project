@@ -1,0 +1,387 @@
+
+<script lang="ts">
+	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { auth } from '$lib/stores/auth';
+	import Chart from 'chart.js/auto';
+import annotationPlugin from 'chartjs-plugin-annotation';
+Chart.register(annotationPlugin);
+
+	const API_URL = 'http://localhost:8080';
+
+	let dashboardData = {
+		mixing: { total: 0, pending: 0, completed: 0 },
+		cutting: { total: 0, pending: 0, completed: 0 },
+		pressing: { total: 0, pending: 0, completed: 0 },
+		finishing: { total: 0, pending: 0, completed: 0 }
+	};
+
+	let isLoading = true;
+	let charts: { [key: string]: { total?: Chart; status?: Chart } } = {};
+
+	const divisions = [
+		{
+			id: 'mixing',
+			name: 'Mixing',
+			icon: 'fa-solid fa-blender',
+			color: 'from-blue-500 to-cyan-500',
+			bgColor: 'bg-blue-50',
+			borderColor: 'border-blue-200',
+			textColor: 'text-blue-700',
+			description: 'Proses pencampuran bahan baku',
+			chartColor: '#3b82f6'
+		},
+		{
+			id: 'cutting',
+			name: 'Cutting',
+			icon: 'fa-solid fa-scissors',
+			color: 'from-purple-500 to-pink-500',
+			bgColor: 'bg-purple-50',
+			borderColor: 'border-purple-200',
+			textColor: 'text-purple-700',
+			description: 'Proses pemotongan material',
+			chartColor: '#a855f7'
+		},
+		{
+			id: 'pressing',
+			name: 'Pressing',
+			icon: 'fa-solid fa-square',
+			color: 'from-orange-500 to-red-500',
+			bgColor: 'bg-orange-50',
+			borderColor: 'border-orange-200',
+			textColor: 'text-orange-700',
+			description: 'Proses pengepresan produk',
+			chartColor: '#f97316'
+		},
+		{
+			id: 'finishing',
+			name: 'Finishing',
+			icon: 'fa-solid fa-star',
+			color: 'from-green-500 to-emerald-500',
+			bgColor: 'bg-green-50',
+			borderColor: 'border-green-200',
+			textColor: 'text-green-700',
+			description: 'Proses penyelesaian akhir',
+			chartColor: '#22c55e'
+		}
+	];
+
+	async function fetchDashboardData() {
+		try {
+			const res = await fetch(`${API_URL}/manager/dashboard`, {
+				headers: { Authorization: `Bearer ${$auth.token}` }
+			});
+
+			if (res.ok) {
+				const result = await res.json();
+				dashboardData = result.data;
+			}
+		} catch (error) {
+			console.error('Error fetching dashboard data:', error);
+			dashboardData = {
+				mixing: { total: 45, pending: 12, completed: 33 },
+				cutting: { total: 38, pending: 8, completed: 30 },
+				pressing: { total: 52, pending: 15, completed: 37 },
+				finishing: { total: 41, pending: 5, completed: 36 }
+			};
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	function initializeCharts() {
+    setTimeout(() => {
+        divisions.forEach((division) => {
+            const data = dashboardData[division.id as keyof typeof dashboardData];
+            
+            // Tentukan nilai target untuk setiap divisi (contoh: target 35 untuk produksi, 5 untuk NG)
+            // Anda bisa menyesuaikan nilai target sesuai kebutuhan
+            const productionTarget = 35; // Target produksi total
+            const notGoodTarget = 5; // Target maksimal NG
+            
+            const totalCanvasId = `chart-total-${division.id}`;
+            const totalCanvas = document.getElementById(totalCanvasId) as HTMLCanvasElement;
+            if (totalCanvas) {
+                const newChart = new Chart(totalCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: ['total produksi'],
+                        datasets: [
+                            {
+                                label: 'Produk',
+                                data: [data.completed || 25, data.pending || 15],
+                                backgroundColor: '#3b82f6',
+                                borderRadius: 4,
+                                borderSkipped: false
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                padding: 8,
+                                displayColors: false
+                            },
+                            // Plugin untuk garis target
+                            annotation: {
+                                annotations: {
+                                    targetLine: {
+                                        type: 'line',
+                                        yMin: productionTarget,
+                                        yMax: productionTarget,
+                                        borderColor: '#10b981', // Warna hijau untuk target
+                                        borderWidth: 2,
+                                        borderDash: [5, 5], // Garis putus-putus
+										label: {
+											content: `Target: ${productionTarget}`,
+											position: 'end',
+											backgroundColor: '#10b981',
+											color: 'white',
+											font: {
+												size: 10
+											}
+										}
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    font: {
+                                        size: 10
+                                    }
+                                },
+                                grid: {
+                                    color: '#f0f0f0'
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    font: {
+                                        size: 10,
+                                        weight: 'bold'
+                                    }
+                                },
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                });
+                if (!charts[division.id]) charts[division.id] = {};
+                charts[division.id].total = newChart;
+            }
+
+            const notGoodCanvasId = `chart-notgood-${division.id}`;
+            const notGoodCanvas = document.getElementById(notGoodCanvasId) as HTMLCanvasElement;
+            if (notGoodCanvas) {
+                const notGoodCount = Math.floor((data.pending || 15) * 0.4);
+                const goodCount = (data.pending || 15) - notGoodCount;
+                
+                const newChart = new Chart(notGoodCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: ['NG'],
+                        datasets: [
+                            {
+                                label: 'Status',
+                                data: [notGoodCount, goodCount],
+                                backgroundColor: '#ef4444',
+                                borderRadius: 4,
+                                borderSkipped: false
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                padding: 8,
+                                displayColors: false
+                            },
+                            // Plugin untuk garis target
+                            annotation: {
+                                annotations: {
+                                    targetLine: {
+                                        type: 'line',
+                                        yMin: notGoodTarget,
+                                        yMax: notGoodTarget,
+                                        borderColor: '#f59e0b', // Warna kuning/orange untuk target NG
+                                        borderWidth: 2,
+                                        borderDash: [5, 5],
+										label: {
+											content: `Target: ${notGoodTarget}`,
+											position: 'end',
+											backgroundColor: '#f59e0b',
+											color: 'white',
+											font: {
+												size: 10
+											}
+										}
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    font: {
+                                        size: 10
+                                    }
+                                },
+                                grid: {
+                                    color: '#f0f0f0'
+                                }
+                            },
+                            x: {
+                                ticks: {
+                                    font: {
+                                        size: 10,
+                                        weight: 'bold'
+                                    }
+                                },
+                                grid: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                });
+                if (!charts[division.id]) charts[division.id] = {};
+                charts[division.id].status = newChart;
+            }
+        });
+    }, 100);
+}
+
+	function getStatusColor(divisionId: string) {
+		if (divisionId === 'cutting') {
+			return { badge: 'bg-red-500', label: 'Problem' };
+		}
+		if (divisionId === 'mixing') {
+			return { badge: 'bg-green-500', label: 'Lancar' };
+		}
+		if (divisionId === 'pressing') {
+			return { badge: 'bg-yellow-500', label: 'Sedang Berjalan' };
+		}
+		if (divisionId === 'finishing') {
+			return { badge: 'bg-green-500', label: 'Lancar' };
+		}
+		return { badge: 'bg-slate-500', label: 'Unknown' };
+	}
+
+	function handleDetailClick(divisionId: string) {
+		if (divisionId === 'pressing') {
+			goto('/manager/prs-ldr');
+		}
+	}
+
+	onMount(() => {
+		fetchDashboardData();
+	});
+
+	$: if (!isLoading) {
+		initializeCharts();
+	}
+</script>
+
+<div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 p-8">
+	<div class="max-w-7xl mx-auto">
+		<!-- Header -->
+		<div class="mb-12">
+			<h1 class="text-4xl font-bold text-slate-900 mb-3">Dashboard Manager</h1>
+			<p class="text-slate-600 text-lg">Pantau performa setiap divisi produksi secara real-time</p>
+		</div>
+
+		<!-- Loading State -->
+		{#if isLoading}
+			<div class="flex justify-center items-center min-h-64">
+				<div class="text-center">
+					<div class="inline-block animate-spin">
+						<i class="fa-solid fa-spinner text-indigo-600 text-4xl"></i>
+					</div>
+					<p class="text-slate-600 mt-4">Memuat data...</p>
+				</div>
+			</div>
+		{:else}
+			<!-- Cards Grid - 2 columns layout -->
+			<div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
+				{#each divisions as division (division.id)}
+					{@const status = getStatusColor(division.id)}
+					{@const data = dashboardData[division.id as keyof typeof dashboardData]}
+					<div
+						class="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-slate-100 hover:border-slate-200"
+					>
+						<div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r {division.color}"></div>
+
+						<div class="p-8 relative z-10">
+							<div class="flex items-center gap-4 mb-8">
+								<div class="{division.bgColor} p-4 rounded-xl group-hover:scale-110 transition-transform shadow-md">
+									<i class="{division.icon} {division.textColor} text-2xl"></i>
+								</div>
+								<div class="flex-1">
+									<h3 class="text-xl font-bold text-slate-800">{division.name}</h3>
+									<p class="text-sm text-slate-500 mt-1">{division.description}</p>
+								</div>
+							</div>
+
+							<!-- Status Badge -->
+							<div class="mb-8 flex items-center gap-3 px-4 py-3 bg-slate-50 rounded-lg border border-slate-200">
+								<span class="{status.badge} w-3 h-3 rounded-full animate-pulse"></span>
+								<span class="text-slate-700 text-sm font-bold flex-1">{status.label}</span>
+								<span class="text-slate-600 text-sm font-semibold px-3 py-1 bg-white rounded-md">Total: <span class="text-slate-900 font-bold">{dashboardData[division.id as keyof typeof dashboardData].total}</span></span>
+							</div>
+
+							<!-- Charts Grid -->
+							<div class="grid grid-cols-2 gap-6">
+								<!-- Total Product Chart - BLUE -->
+								<div class="flex flex-col items-center p-4 bg-blue-50 rounded-lg border border-blue-200">
+									<p class="text-xs text-blue-700 font-bold mb-3">Total Output</p>
+									<canvas id="chart-total-{division.id}" style="max-height: 120px;"></canvas>
+								</div>
+
+								<!-- Not Good Status Chart - RED -->
+								<div class="flex flex-col items-center p-4 bg-red-50 rounded-lg border border-red-200">
+									<p class="text-xs text-red-700 font-bold mb-3">Total NG</p>
+									<canvas id="chart-notgood-{division.id}" style="max-height: 120px;"></canvas>
+								</div>
+							</div>
+						</div>
+
+						<div
+							class="px-8 py-4 bg-slate-50 border-t border-slate-100"
+						>
+							<button
+								on:click={() => handleDetailClick(division.id)}
+								class="w-full py-2 px-4 rounded-lg text-sm font-semibold text-white bg-slate-700 hover:bg-slate-800 transition-all duration-300"
+							>
+								Lihat Detail
+							</button>
+						</div>
+					</div>
+				{/each}
+			</div>
+		{/if}
+	</div>
+</div>
+
+<style>
+	:global(body) {
+		background-color: #f8fafc;
+	}
+</style>
