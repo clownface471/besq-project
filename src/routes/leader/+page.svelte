@@ -12,12 +12,15 @@
     let isLoading = true; 
     let charts: Record<string, any> = {};
 
+    // 1. TAMBAHAN: State untuk tanggal
+    let selectedDate = new Date().toISOString().split('T')[0];
+
     function goBack() {
         goto('/');
     }
 
     function selectMachine(machine: any) {
-        goto(`/leader/mc-detail?no_mc=${machine.id}`);
+        goto(`/leader/mc-detail?id=${machine.id}&date=${selectedDate}`);
     }
 
     function getMachineStatusColor(machine: any) {
@@ -40,8 +43,8 @@
     async function fetchMachineStatus() {
         isLoading = true;
         try {
-            const today = new Date().toISOString().split('T')[0];
-            const res = await fetch(`/api/chart/process?tanggal=${today}&proses=PRS`, {
+            // 3. UPDATE: Gunakan 'selectedDate' dinamis
+            const res = await fetch(`/api/chart/process?tanggal=${selectedDate}&proses=PRS`, {
                 headers: { Authorization: `Bearer ${$auth.token}` }
             });
 
@@ -49,35 +52,43 @@
                 const data = await res.json();
                 
                 machineData = data.map((item: any) => {
-                    // PERBAIKAN: Gunakan nilai RAW (Angka Asli)
                     const target = Math.round(item.target || 0);
                     const actual = Math.round(item.actual || 0);
-                    const ng = Math.round(item.actual_ng || 0); // Ambil data NG dari backend
+                    const ng = Math.round(item.actual_ng || 0); 
 
-                    // Hitung % hanya untuk logika status warna (isProblem)
                     const achievement = target > 0 ? (actual / target) * 100 : 0;
                     const ngRate = (actual + ng) > 0 ? (ng / (actual + ng)) * 100 : 0;
 
                     return {
                         id: item.label,
                         name: `Mesin Press ${item.label}`,
-                        target: target,      // Simpan target per mesin
-                        completed: actual,   // Angka aktual
-                        notGood: ng,         // Angka aktual NG
-                        // Logic Status: Problem jika pencapaian < 80% ATAU NG > 5% (Sesuaikan standar pabrik)
+                        target: target,
+                        completed: actual,
+                        notGood: ng,
                         isProblem: achievement < 80 || ngRate > 5 
                     };
                 });
+            } else {
+                machineData = []; // Reset jika gagal load
             }
         } catch (e) {
             console.error("Gagal ambil data mesin:", e);
         } finally {
             isLoading = false;
+            // Bersihkan chart lama agar tidak tumpang tindih saat ganti tanggal
+            Object.keys(charts).forEach(machineId => {
+                if (charts[machineId]?.total) charts[machineId].total.destroy();
+                if (charts[machineId]?.notGood) charts[machineId].notGood.destroy();
+            });
+            charts = {};
             setTimeout(initializeCharts, 100);
         }
     }
 
     function initializeCharts() {
+        // Safety check: Jangan render jika data kosong
+        if (machineData.length === 0) return;
+
         Object.keys(charts).forEach(machineId => {
             if (charts[machineId]?.total) charts[machineId].total.destroy();
             if (charts[machineId]?.notGood) charts[machineId].notGood.destroy();
@@ -85,11 +96,10 @@
         charts = {};
 
         machineData.forEach((machine) => {
-            // Target per mesin (bukan global 90% lagi)
             const machineTarget = machine.target; 
-            const maxScale = Math.max(machineTarget, machine.completed) * 1.2; // Skala grafik sedikit lebih tinggi dari nilai terbesar
+            const maxScale = Math.max(machineTarget, machine.completed) * 1.2; 
 
-            // --- Chart Total Produksi (Angka Aktual) ---
+            // --- Chart Total Produksi ---
             const totalCanvasId = `chart-total-${machine.id}`;
             const totalCanvas = document.getElementById(totalCanvasId) as HTMLCanvasElement;
             
@@ -165,7 +175,7 @@
                             scales: {
                                 y: {
                                     beginAtZero: true,
-                                    max: maxScale, // Skala dinamis
+                                    max: maxScale,
                                     ticks: { font: { size: 9 }, color: '#64748b', padding: 4 },
                                     grid: { color: 'rgba(100, 116, 139, 0.1)', drawOnChartArea: true, drawTicks: false },
                                     border: { display: false }
@@ -179,7 +189,7 @@
                 }
             }
 
-            // --- Chart Not Good (Angka Aktual) ---
+            // --- Chart Not Good ---
             const notGoodCanvasId = `chart-notgood-${machine.id}`;
             const notGoodCanvas = document.getElementById(notGoodCanvasId) as HTMLCanvasElement;
             
@@ -190,7 +200,6 @@
                     gradient.addColorStop(0, '#ef4444');
                     gradient.addColorStop(1, '#dc2626');
 
-                    // Target NG (Misal toleransi 5% dari target produksi)
                     const maxNG = Math.ceil(machineTarget * 0.05); 
 
                     const newChart = new Chart(notGoodCanvas, {
@@ -227,7 +236,6 @@
                                         }
                                     }
                                 },
-                                // Opsional: Garis batas maksimal NG
                                 annotation: {
                                     annotations: {
                                         limitLine: {
@@ -253,7 +261,6 @@
                             scales: {
                                 y: {
                                     beginAtZero: true,
-                                    // Berikan sedikit ruang di atas
                                     suggestedMax: Math.max(machine.notGood, maxNG) * 1.5, 
                                     ticks: { font: { size: 9 }, color: '#64748b', padding: 4 },
                                     grid: { color: 'rgba(100, 116, 139, 0.1)', drawOnChartArea: true, drawTicks: false },
@@ -270,7 +277,6 @@
         });
     }
 
-    // Reactive variables
     $: pressMachines = machineData.filter(m => ['07B', '16B', '16A', '12B', '12A', '14B', '14A', '09A', '09B', '11A', '11B', '15A', '15B', '02A', '04A', '04B', '13B', '13A', '10B', '10A'].includes(m.id));
     $: injectMachines = machineData.filter(m => ['20A', '21A', '22A', '19A', '18A', '17A'].includes(m.id));
 
@@ -305,6 +311,17 @@
                 </button>
                 <h1 class="text-2xl md:text-3xl font-bold text-slate-800">Pressing Line Dashboard</h1>
                 <p class="text-slate-600 mt-1 text-sm md:text-base">Pantau status semua mesin press dengan diagram real-time</p>
+            </div>
+
+            <div class="flex flex-col items-end">
+                <label for="date-picker" class="text-xs font-bold text-slate-500 mb-1">Tanggal Laporan</label>
+                <input 
+                    id="date-picker"
+                    type="date" 
+                    bind:value={selectedDate}
+                    on:change={fetchMachineStatus}
+                    class="px-3 py-2 border border-slate-300 rounded-lg text-sm shadow-sm focus:ring-indigo-500 focus:border-indigo-500 text-slate-700 bg-white"
+                />
             </div>
         </div>
 

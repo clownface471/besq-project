@@ -1,43 +1,53 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { page } from '$app/stores';
   import Chart from 'chart.js/auto';
+  import annotationPlugin from 'chartjs-plugin-annotation';
   import { auth } from '$lib/stores/auth';
-  
-  const API_URL = "http://localhost:8080";
+
+  // Registrasi plugin
+  Chart.register(annotationPlugin);
 
   let canvasTotal: HTMLCanvasElement;
   let canvasNG: HTMLCanvasElement;
   let chartTotal: Chart;
   let chartNG: Chart;
 
-  // Filter State
+  // 1. Ambil ID & Tanggal dari URL
+  // Karena folder sudah diubah jadi 'mc-detail', pastikan URL param terbaca
+  let urlMachineId = $page.url.searchParams.get('no_mc') || $page.url.searchParams.get('id') || '11A';
+  let urlDate = $page.url.searchParams.get('date') || new Date().toISOString().split('T')[0];
+
+  // State Filter
   let filters = {
-    tanggal: new Date().toISOString().split('T')[0],
-    mesin: '11A',
+    tanggal: urlDate,
+    mesin: urlMachineId,
     shift: '1'
   };
 
   let chartData: any[] = [];
   let isLoading = false;
 
-  function getDummyData() {
-    // Dummy data matching screenshot pattern
-    return [
-      { jam_label: '07:00', nilai_total: 27, nilai_ng: 6 },
-      { jam_label: '08:00', nilai_total: 0, nilai_ng: 0 },
-      { jam_label: '09:00', nilai_total: 36, nilai_ng: 0 },
-      { jam_label: '10:00', nilai_total: 36, nilai_ng: 0 },
-      { jam_label: '11:00', nilai_total: 18, nilai_ng: 0 },
-      { jam_label: '12:00', nilai_total: 0, nilai_ng: 0 }
-    ];
-  }
-
   async function loadChartData() {
     isLoading = true;
     try {
-      // Using dummy data for now
-      chartData = getDummyData();
-      renderCharts();
+      // 2. Fetch Data Real dari Backend
+      // Pastikan endpoint backend sudah sesuai router Go Anda
+      const res = await fetch(`/api/chart/machine-detail?tanggal=${filters.tanggal}&no_mc=${filters.mesin}`, {
+          headers: { Authorization: `Bearer ${$auth.token}` }
+      });
+
+      if (res.ok) {
+          chartData = await res.json();
+          // Validasi jika data null
+          if (!chartData) chartData = [];
+          renderCharts();
+      } else {
+          console.error("Gagal load data");
+          chartData = [];
+          // Tetap render grafik kosong biar canvas bersih
+          renderCharts();
+      }
     } catch (err) {
       console.error("Error:", err);
     } finally {
@@ -45,16 +55,19 @@
     }
   }
 
-function renderCharts() {
-    const labels = chartData.map(d => d.jam_label);
-    const totalVals = chartData.map(d => d.nilai_total);
-    const ngVals = chartData.map(d => d.nilai_ng);
-
-    // --- CHART 1: Total Output (Vertical Bar) ---
-    if (chartTotal) chartTotal.destroy();
+  function renderCharts() {
+    // 3. Mapping Data (Perbaikan Kunci Data)
+    // Backend Go: label, actual, actual_ng
+    const labels = chartData.map(d => d.label);
+    const totalVals = chartData.map(d => d.actual);
+    const ngVals = chartData.map(d => d.actual_ng);
     
-    // Tentukan target untuk Total Output (contoh: target 30 unit per jam)
-    const targetTotal = 30;
+    // Ambil target dari data pertama (jika ada) atau default 30
+    const targetTotal = chartData.length > 0 ? (chartData[0].target || 30) : 30;
+    const targetNG = 5; // Target NG static atau hitung % (misal Math.ceil(targetTotal * 0.05))
+
+    // --- CHART 1: Total Output ---
+    if (chartTotal) chartTotal.destroy();
     
     chartTotal = new Chart(canvasTotal, {
         type: 'bar',
@@ -72,7 +85,7 @@ function renderCharts() {
                 },
                 {
                     label: 'Target Output',
-                    type: 'line', // Garis target
+                    type: 'line',
                     data: Array(labels.length).fill(targetTotal),
                     borderColor: '#10b981',
                     borderWidth: 2,
@@ -95,10 +108,7 @@ function renderCharts() {
                 legend: {
                     display: true,
                     position: 'top',
-                    labels: {
-                        usePointStyle: true,
-                        padding: 20
-                    }
+                    labels: { usePointStyle: true, padding: 20 }
                 },
                 tooltip: {
                     mode: 'index',
@@ -106,20 +116,13 @@ function renderCharts() {
                     callbacks: {
                         label: function(context) {
                             let label = context.dataset.label || '';
-                            if (label) {
-                                label += ': ';
-                            }
+                            if (label) label += ': ';
                             if (context.datasetIndex === 0) {
                                 label += context.raw + ' unit';
-                                // Tambahkan indikator target
                                 const diff = (context.raw as number) - targetTotal;
-                                if (diff >= 0) {
-                                    label += ` (${diff} di atas target)`;
-                                } else {
-                                    label += ` (${Math.abs(diff)} di bawah target)`;
-                                }
+                                label += diff >= 0 ? ` (+${diff})` : ` (${diff})`;
                             } else {
-                                label += 'Target: ' + context.raw + ' unit';
+                                label += 'Target: ' + context.raw;
                             }
                             return label;
                         }
@@ -139,10 +142,7 @@ function renderCharts() {
                                 position: 'end',
                                 backgroundColor: '#10b981',
                                 color: 'white',
-                                font: {
-                                    size: 12,
-                                    weight: 'bold'
-                                },
+                                font: { size: 12, weight: 'bold' },
                                 padding: 6
                             }
                         }
@@ -152,38 +152,20 @@ function renderCharts() {
             scales: {
                 y: {
                     beginAtZero: true,
-                    title: { 
-                        display: true, 
-                        text: 'Jumlah Output',
-                        font: { weight: 'bold' }
-                    },
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.1)'
-                    }
+                    title: { display: true, text: 'Jumlah Output', font: { weight: 'bold' } },
+                    grid: { color: 'rgba(0, 0, 0, 0.1)' }
                 },
                 x: {
-                    title: { 
-                        display: true, 
-                        text: 'Jam Produksi',
-                        font: { weight: 'bold' }
-                    },
-                    grid: {
-                        display: false
-                    }
+                    title: { display: true, text: 'Jam Produksi', font: { weight: 'bold' } },
+                    grid: { display: false }
                 }
             },
-            interaction: {
-                intersect: false,
-                mode: 'index'
-            }
+            interaction: { intersect: false, mode: 'index' }
         }
     });
 
-    // --- CHART 2: NG (Vertical Bar) ---
+    // --- CHART 2: NG ---
     if (chartNG) chartNG.destroy();
-    
-    // Tentukan target untuk NG (contoh: maksimal 5 unit per jam)
-    const targetNG = 5;
     
     chartNG = new Chart(canvasNG, {
         type: 'bar',
@@ -201,7 +183,7 @@ function renderCharts() {
                 },
                 {
                     label: 'Target Maksimal NG',
-                    type: 'line', // Garis target
+                    type: 'line',
                     data: Array(labels.length).fill(targetNG),
                     borderColor: '#f59e0b',
                     borderWidth: 2,
@@ -224,10 +206,7 @@ function renderCharts() {
                 legend: {
                     display: true,
                     position: 'top',
-                    labels: {
-                        usePointStyle: true,
-                        padding: 20
-                    }
+                    labels: { usePointStyle: true, padding: 20 }
                 },
                 tooltip: {
                     mode: 'index',
@@ -235,20 +214,11 @@ function renderCharts() {
                     callbacks: {
                         label: function(context) {
                             let label = context.dataset.label || '';
-                            if (label) {
-                                label += ': ';
-                            }
+                            if (label) label += ': ';
                             if (context.datasetIndex === 0) {
                                 label += context.raw + ' unit';
-                                // Tambahkan indikator target
-                                const diff = (context.raw as number) - targetNG;
-                                if (diff <= 0) {
-                                    label += ` (${Math.abs(diff)} di bawah target)`;
-                                } else {
-                                    label += ` (${diff} di atas target)`;
-                                }
                             } else {
-                                label += 'Target maksimal: ' + context.raw + ' unit';
+                                label += 'Max: ' + context.raw;
                             }
                             return label;
                         }
@@ -264,14 +234,11 @@ function renderCharts() {
                             borderWidth: 2,
                             borderDash: [5, 5],
                             label: {
-                                content: `Target: ≤${targetNG}`,
+                                content: `Max: ${targetNG}`,
                                 position: 'end',
                                 backgroundColor: '#f59e0b',
                                 color: 'white',
-                                font: {
-                                    size: 12,
-                                    weight: 'bold'
-                                },
+                                font: { size: 12, weight: 'bold' },
                                 padding: 6
                             }
                         }
@@ -281,33 +248,18 @@ function renderCharts() {
             scales: {
                 y: {
                     beginAtZero: true,
-                    title: { 
-                        display: true, 
-                        text: 'Jumlah NG',
-                        font: { weight: 'bold' }
-                    },
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.1)'
-                    }
+                    title: { display: true, text: 'Jumlah NG', font: { weight: 'bold' } },
+                    grid: { color: 'rgba(0, 0, 0, 0.1)' }
                 },
                 x: {
-                    title: { 
-                        display: true, 
-                        text: 'Jam Produksi',
-                        font: { weight: 'bold' }
-                    },
-                    grid: {
-                        display: false
-                    }
+                    title: { display: true, text: 'Jam Produksi', font: { weight: 'bold' } },
+                    grid: { display: false }
                 }
             },
-            interaction: {
-                intersect: false,
-                mode: 'index'
-            }
+            interaction: { intersect: false, mode: 'index' }
         }
     });
-}
+  }
 
   onMount(() => {
       loadChartData();
@@ -321,12 +273,10 @@ function renderCharts() {
     </div>
     <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap gap-4 items-end">
         <div>
-            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="block text-xs font-bold text-slate-500 mb-1">Tanggal</label>
             <input type="date" bind:value={filters.tanggal} class="px-3 py-2 border rounded-lg text-sm">
         </div>
         <div>
-            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="block text-xs font-bold text-slate-500 mb-1">Shift</label>
             <select bind:value={filters.shift} class="px-3 py-2 border rounded-lg text-sm">
                 <option value="1">Shift 1 (07-15)</option>
@@ -362,12 +312,12 @@ function renderCharts() {
                 <tbody class="divide-y divide-slate-100">
                     {#each chartData as row}
                         <tr class="hover:bg-slate-50">
-                            <td class="px-6 py-3 font-mono font-bold text-indigo-600">{row.jam_label}</td>
-                            <td class="px-6 py-3 text-right font-medium">{row.nilai_total}</td>
-                            <td class="px-6 py-3 text-right font-bold text-rose-600">{row.nilai_ng}</td>
+                            <td class="px-6 py-3 font-mono font-bold text-indigo-600">{row.label}</td>
+                            <td class="px-6 py-3 text-right font-medium">{row.actual}</td>
+                            <td class="px-6 py-3 text-right font-bold text-rose-600">{row.actual_ng}</td>
                         </tr>
                     {/each}
-                    {#if chartData.length === 0}
+                    {#if chartData.length === 0 && !isLoading}
                         <tr><td colspan="3" class="px-6 py-8 text-center text-slate-400">Tidak ada data.</td></tr>
                     {/if}
                 </tbody>
