@@ -12,8 +12,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// ... (CreateOperator tetap sama, tidak perlu diubah) ...
-func CreateOperator(c *gin.Context) {
+		func CreateOperator(c *gin.Context) {
 	var input models.RegisterInput
 
 	if err := c.ShouldBindJSON(&input); err != nil {
