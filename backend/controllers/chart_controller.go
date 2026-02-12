@@ -2,82 +2,145 @@ package controllers
 
 import (
 	"factory-api/database"
+	"factory-api/models"
 	"net/http"
+
 	"github.com/gin-gonic/gin"
 )
 
-// Struct untuk input filter dari Frontend
-type ChartFilter struct {
-	Tanggal string `json:"tanggal"`  // YYYY-MM-DD
-	Mesin   string `json:"mesin"`
-	Shift   int    `json:"shift"`
+// Helper: Cek koneksi DB
+func isDBConnected(c *gin.Context) bool {
+	if database.MySQL == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": "Database Statistik (MySQL) tidak terhubung. Pastikan VPN aktif atau konfigurasi DB benar.",
+			"data":  []models.ChartSeries{}, 
+		})
+		return false
+	}
+	return true
 }
 
-// Struct untuk output ke Frontend
-type ChartData struct {
-	JamLabel   string  `json:"jam_label"`
-	NilaiTotal float64 `json:"nilai_total"`
-	NilaiNG    float64 `json:"nilai_ng"`
-}
+// --- LEVEL 1: MANAGER VIEW (Overview Per Proses) ---
+func GetManagerOverview(c *gin.Context) {
+	if !isDBConnected(c) { return }
 
-func GetProductionChart(c *gin.Context) {
-	var filter ChartFilter
-	if err := c.ShouldBindJSON(&filter); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
+	tanggal := c.Query("tanggal") 
+	var results []models.ChartSeries
 
-	// Default jam kerja shift
-	jamMulai, jamSelesai := 7, 15
-	if filter.Shift == 2 {
-		jamMulai, jamSelesai = 15, 23
-	} else if filter.Shift == 3 {
-		jamMulai, jamSelesai = 23, 7
-	}
-
-	// Query SQL Kompleks (MySQL)
-	// Menggunakan parameter binding (?) untuk keamanan
+	// Rumus: Target = (Durasi Jam) * (Target Qty/Jam)
 	query := `
-	WITH RECURSIVE jam_master AS (
-		SELECT 0 AS jam_angka
-		UNION ALL
-		SELECT jam_angka + 1 FROM jam_master WHERE jam_angka < 23
-	),
-	raw_data AS (
 		SELECT 
-			h.Tanggal, h.noMC, j.jam_angka,
-			ROUND(SUM(d.OK * (GREATEST(0, TIME_TO_SEC(TIMEDIFF(LEAST(d.SELESAI, MAKETIME(j.jam_angka + 1, 0, 0)), GREATEST(d.MULAI, MAKETIME(j.jam_angka, 0, 0)))) ) / NULLIF(TIME_TO_SEC(TIMEDIFF(d.SELESAI, d.MULAI)), 0)))) AS qty_ok_allocated,
-			ROUND(SUM(d.NG * (GREATEST(0, TIME_TO_SEC(TIMEDIFF(LEAST(d.SELESAI, MAKETIME(j.jam_angka + 1, 0, 0)), GREATEST(d.MULAI, MAKETIME(j.jam_angka, 0, 0)))) ) / NULLIF(TIME_TO_SEC(TIMEDIFF(d.SELESAI, d.MULAI)), 0)))) AS qty_ng_allocated
-		FROM trh_lwp_prs h
-		JOIN tr_lwp_prs d ON d.IDhprs = h.IDhprs 
-		CROSS JOIN jam_master j
-		WHERE h.Tanggal = ? AND d.MULAI < MAKETIME(j.jam_angka + 1, 0, 0) AND d.SELESAI > MAKETIME(j.jam_angka, 0, 0)
-		GROUP BY h.Tanggal, h.noMC, j.jam_angka
-	)
-	SELECT 
-		CONCAT(LPAD(jam_angka, 2, '0'), ':00') AS jam_label,
-		COALESCE(SUM(qty_ok_allocated + qty_ng_allocated), 0) AS nilai_total,
-		COALESCE(SUM(qty_ng_allocated), 0) AS nilai_ng
-	FROM raw_data
-	WHERE noMC = ? AND jam_angka BETWEEN ? AND ?
-	GROUP BY jam_angka
-	ORDER BY jam_angka ASC;
+			t.proses AS label,
+			COALESCE(SUM((TIME_TO_SEC(TIMEDIFF(t.SELESAI, t.MULAI)) / 3600.0) * s.tgtQtyPJam), 0) AS target,
+			COALESCE(SUM(t.Total), 0) AS actual,
+			COALESCE(SUM(t.NG), 0) AS actual_ng
+		FROM vtrx_lwp_prs t
+		LEFT JOIN v_stdlot s ON t.moldcode = s.moldCode COLLATE utf8mb4_unicode_ci
+		WHERE t.tanggal = ?
+		GROUP BY t.proses
 	`
 
-	var results []ChartData
-	
-	// --- PERBAIKAN DISINI ---
-	// Cek dulu apakah koneksi MySQL tersedia
-	if database.MySQL == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Koneksi ke Database Statistik (MySQL) terputus atau tidak dikonfigurasi."})
+	if err := database.MySQL.Raw(query, tanggal).Scan(&results).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal ambil data manager: " + err.Error()})
 		return
 	}
 
-	// Gunakan database.MySQL, BUKAN database.DB
-	if err := database.MySQL.Raw(query, filter.Tanggal, filter.Mesin, jamMulai, jamSelesai).Scan(&results).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data grafik: " + err.Error()})
+	c.JSON(http.StatusOK, results)
+}
+
+// --- LEVEL 2: LEADER VIEW (Overview Per Mesin) ---
+func GetLeaderProcessView(c *gin.Context) {
+	if !isDBConnected(c) { return }
+
+	tanggal := c.Query("tanggal")
+	proses := c.Query("proses") 
+
+	var results []models.ChartSeries
+
+	// Rumus Konsisten: Target = (Durasi Jam) * (Target Qty/Jam)
+	query := `
+		SELECT 
+			t.noMC AS label,
+			COALESCE(SUM((TIME_TO_SEC(TIMEDIFF(t.SELESAI, t.MULAI)) / 3600.0) * s.tgtQtyPJam), 0) AS target,
+			COALESCE(SUM(t.Total), 0) AS actual,
+			COALESCE(SUM(t.NG), 0) AS actual_ng
+		FROM vtrx_lwp_prs t
+		LEFT JOIN v_stdlot s ON t.moldcode = s.moldCode COLLATE utf8mb4_unicode_ci
+		WHERE t.tanggal = ? AND t.proses = ?
+		GROUP BY t.noMC
+		ORDER BY t.noMC
+	`
+
+	if err := database.MySQL.Raw(query, tanggal, proses).Scan(&results).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal ambil data leader: " + err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": results})
+	c.JSON(http.StatusOK, results)
+}
+
+// --- LEVEL 3: MACHINE DETAIL (Per Jam) ---
+func GetMachineDetail(c *gin.Context) {
+	if !isDBConnected(c) { return }
+
+	tanggal := c.Query("tanggal")
+	noMC := c.Query("no_mc")
+
+	var results []models.ChartSeries
+
+	// PERBAIKAN BESAR:
+	// Sekarang Target dihitung proporsional berdasarkan durasi dalam jam tersebut.
+	// Contoh: Target 100/jam. Kalau cuma jalan 30 menit, Target di chart jadi 50.
+	// Ini membuat Total Target Level 3 == Total Target Level 2.
+	query := `
+	WITH RECURSIVE 
+    jam_master AS (
+        SELECT 0 AS jam_angka
+        UNION ALL
+        SELECT jam_angka + 1 FROM jam_master WHERE jam_angka < 23
+    ),
+    raw_data AS (
+        SELECT 
+            t.tanggal, t.nama AS operator, t.MULAI, t.SELESAI,
+            s.itemName, s.tgtQtyPJam, j.jam_angka,
+            
+            -- Hitung detik overlap di jam ini
+            (GREATEST(0, TIME_TO_SEC(TIMEDIFF(LEAST(t.SELESAI, MAKETIME(j.jam_angka + 1, 0, 0)), GREATEST(t.MULAI, MAKETIME(j.jam_angka, 0, 0)))))) AS seconds_in_slot,
+            
+            -- Total durasi transaksi asli (untuk pembagi rasio)
+            NULLIF(TIME_TO_SEC(TIMEDIFF(t.SELESAI, t.MULAI)), 0) AS total_duration_sec,
+
+            t.Total, t.OK, t.NG
+        FROM vtrx_lwp_prs t
+        LEFT JOIN v_stdlot s ON t.moldcode = s.moldCode COLLATE utf8mb4_unicode_ci
+        CROSS JOIN jam_master j
+        WHERE 
+            t.tanggal = ? 
+            AND t.noMC = ? 
+            AND t.MULAI < MAKETIME(j.jam_angka + 1, 0, 0) 
+            AND t.SELESAI > MAKETIME(j.jam_angka, 0, 0)
+    )
+    SELECT 
+        CONCAT(LPAD(jam_angka, 2, '0'), ':00') AS label,
+        
+        -- Target = (Detik di Slot Ini / 3600) * Target Per Jam
+        -- Ini menjamin konsistensi penjumlahan dengan Level 2
+        COALESCE(SUM((seconds_in_slot / 3600.0) * tgtQtyPJam), 0) AS target,
+        
+        -- Actual & NG dialokasikan berdasarkan rasio waktu
+        COALESCE(SUM(ROUND(Total * (seconds_in_slot / total_duration_sec))), 0) AS actual,
+        COALESCE(SUM(ROUND(NG * (seconds_in_slot / total_duration_sec))), 0) AS actual_ng,
+        
+        CONCAT(COALESCE(MAX(itemName), '-'), ' (', COALESCE(MAX(operator), '-'), ')') AS extra_info
+    FROM raw_data
+    GROUP BY jam_angka
+    ORDER BY jam_angka ASC;
+	`
+
+	if err := database.MySQL.Raw(query, tanggal, noMC).Scan(&results).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal ambil detail mesin: " + err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, results)
 }
