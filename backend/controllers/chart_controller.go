@@ -79,25 +79,41 @@ func GetLeaderProcessView(c *gin.Context) {
 	c.JSON(http.StatusOK, results)
 }
 
-// --- LEVEL 3: MACHINE DETAIL (Per Jam) ---
+// --- LEVEL 3: MACHINE DETAIL (Per Jam) WITH SHIFT FILTER ---
 func GetMachineDetail(c *gin.Context) {
 	if !isDBConnected(c) { return }
 
 	tanggal := c.Query("tanggal")
 	noMC := c.Query("no_mc")
+	shift := c.Query("shift") // Get shift parameter
 
 	var results []models.ChartSeries
+	
+	// Define shift hour ranges
+	var startHour, endHour int
+	switch shift {
+	case "1":
+		startHour = 0
+		endHour = 8
+	case "2":
+		startHour = 8
+		endHour = 16
+	case "3":
+		startHour = 16
+		endHour = 24
+	default:
+		// If no shift specified, show all 24 hours
+		startHour = 0
+		endHour = 24
+	}
 
-	// PERBAIKAN BESAR:
-	// Sekarang Target dihitung proporsional berdasarkan durasi dalam jam tersebut.
-	// Contoh: Target 100/jam. Kalau cuma jalan 30 menit, Target di chart jadi 50.
-	// Ini membuat Total Target Level 3 == Total Target Level 2.
+	// Updated query with shift filtering
 	query := `
 	WITH RECURSIVE 
     jam_master AS (
-        SELECT 0 AS jam_angka
+        SELECT ? AS jam_angka
         UNION ALL
-        SELECT jam_angka + 1 FROM jam_master WHERE jam_angka < 23
+        SELECT jam_angka + 1 FROM jam_master WHERE jam_angka < ?
     ),
     raw_data AS (
         SELECT 
@@ -124,7 +140,6 @@ func GetMachineDetail(c *gin.Context) {
         CONCAT(LPAD(jam_angka, 2, '0'), ':00') AS label,
         
         -- Target = (Detik di Slot Ini / 3600) * Target Per Jam
-        -- Ini menjamin konsistensi penjumlahan dengan Level 2
         COALESCE(SUM((seconds_in_slot / 3600.0) * tgtQtyPJam), 0) AS target,
         
         -- Actual & NG dialokasikan berdasarkan rasio waktu
@@ -137,7 +152,7 @@ func GetMachineDetail(c *gin.Context) {
     ORDER BY jam_angka ASC;
 	`
 
-	if err := database.MySQL.Raw(query, tanggal, noMC).Scan(&results).Error; err != nil {
+	if err := database.MySQL.Raw(query, startHour, endHour-1, tanggal, noMC).Scan(&results).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal ambil detail mesin: " + err.Error()})
 		return
 	}
