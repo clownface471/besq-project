@@ -8,11 +8,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Helper: Cek koneksi DB
 func isDBConnected(c *gin.Context) bool {
 	if database.MySQL == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
 			"error": "Database Statistik (MySQL) tidak terhubung. Pastikan VPN aktif atau konfigurasi DB benar.",
-			"data":  []models.ChartSeries{}, // Return data kosong agar frontend tidak error
+			"data":  []models.ChartSeries{}, 
 		})
 		return false
 	}
@@ -21,20 +22,18 @@ func isDBConnected(c *gin.Context) bool {
 
 // --- LEVEL 1: MANAGER VIEW (Overview Per Proses) ---
 func GetManagerOverview(c *gin.Context) {
-
-	if !isDBConnected(c) {
-		return
-	}
+	if !isDBConnected(c) { return }
 
 	tanggal := c.Query("tanggal") 
-
 	var results []models.ChartSeries
 
+	// Rumus: Target = (Durasi Jam) * (Target Qty/Jam)
 	query := `
 		SELECT 
 			t.proses AS label,
 			COALESCE(SUM((TIME_TO_SEC(TIMEDIFF(t.SELESAI, t.MULAI)) / 3600.0) * s.tgtQtyPJam), 0) AS target,
-			COALESCE(SUM(t.Total), 0) AS actual
+			COALESCE(SUM(t.Total), 0) AS actual,
+			COALESCE(SUM(t.NG), 0) AS actual_ng
 		FROM vtrx_lwp_prs t
 		LEFT JOIN v_stdlot s ON t.moldcode = s.moldCode COLLATE utf8mb4_unicode_ci
 		WHERE t.tanggal = ?
@@ -51,17 +50,14 @@ func GetManagerOverview(c *gin.Context) {
 
 // --- LEVEL 2: LEADER VIEW (Overview Per Mesin) ---
 func GetLeaderProcessView(c *gin.Context) {
-	// Cek koneksi sebelum query
-	if !isDBConnected(c) {
-		return
-	}
+	if !isDBConnected(c) { return }
 
 	tanggal := c.Query("tanggal")
 	proses := c.Query("proses") 
 
 	var results []models.ChartSeries
 
-	// PERBAIKAN: Menambahkan 'actual_ng' pada SELECT
+	// Rumus Konsisten: Target = (Durasi Jam) * (Target Qty/Jam)
 	query := `
 		SELECT 
 			t.noMC AS label,
@@ -85,16 +81,17 @@ func GetLeaderProcessView(c *gin.Context) {
 
 // --- LEVEL 3: MACHINE DETAIL (Per Jam) ---
 func GetMachineDetail(c *gin.Context) {
-
-	if !isDBConnected(c) {
-		return
-	}
+	if !isDBConnected(c) { return }
 
 	tanggal := c.Query("tanggal")
 	noMC := c.Query("no_mc")
 
 	var results []models.ChartSeries
 
+	// PERBAIKAN BESAR:
+	// Sekarang Target dihitung proporsional berdasarkan durasi dalam jam tersebut.
+	// Contoh: Target 100/jam. Kalau cuma jalan 30 menit, Target di chart jadi 50.
+	// Ini membuat Total Target Level 3 == Total Target Level 2.
 	query := `
 	WITH RECURSIVE 
     jam_master AS (
@@ -106,25 +103,34 @@ func GetMachineDetail(c *gin.Context) {
         SELECT 
             t.tanggal, t.nama AS operator, t.MULAI, t.SELESAI,
             s.itemName, s.tgtQtyPJam, j.jam_angka,
-            ROUND(t.Total * (GREATEST(0, TIME_TO_SEC(TIMEDIFF(LEAST(t.SELESAI, MAKETIME(j.jam_angka + 1, 0, 0)), GREATEST(t.MULAI, MAKETIME(j.jam_angka, 0, 0))))) / NULLIF(TIME_TO_SEC(TIMEDIFF(t.SELESAI, t.MULAI)), 0))) AS allocated_total,
-            ROUND(t.OK * (GREATEST(0, TIME_TO_SEC(TIMEDIFF(LEAST(t.SELESAI, MAKETIME(j.jam_angka + 1, 0, 0)), GREATEST(t.MULAI, MAKETIME(j.jam_angka, 0, 0))))) / NULLIF(TIME_TO_SEC(TIMEDIFF(t.SELESAI, t.MULAI)), 0))) AS allocated_ok,
-            ROUND(t.NG * (GREATEST(0, TIME_TO_SEC(TIMEDIFF(LEAST(t.SELESAI, MAKETIME(j.jam_angka + 1, 0, 0)), GREATEST(t.MULAI, MAKETIME(j.jam_angka, 0, 0))))) / NULLIF(TIME_TO_SEC(TIMEDIFF(t.SELESAI, t.MULAI)), 0))) AS allocated_ng
+            
+            -- Hitung detik overlap di jam ini
+            (GREATEST(0, TIME_TO_SEC(TIMEDIFF(LEAST(t.SELESAI, MAKETIME(j.jam_angka + 1, 0, 0)), GREATEST(t.MULAI, MAKETIME(j.jam_angka, 0, 0)))))) AS seconds_in_slot,
+            
+            -- Total durasi transaksi asli (untuk pembagi rasio)
+            NULLIF(TIME_TO_SEC(TIMEDIFF(t.SELESAI, t.MULAI)), 0) AS total_duration_sec,
+
+            t.Total, t.OK, t.NG
         FROM vtrx_lwp_prs t
-        -- JOIN tetap pakai COLLATE agar aman antar kolom tabel
         LEFT JOIN v_stdlot s ON t.moldcode = s.moldCode COLLATE utf8mb4_unicode_ci
         CROSS JOIN jam_master j
         WHERE 
             t.tanggal = ? 
-            AND t.noMC = ? -- PERBAIKAN: HAPUS COLLATE DISINI
+            AND t.noMC = ? 
             AND t.MULAI < MAKETIME(j.jam_angka + 1, 0, 0) 
             AND t.SELESAI > MAKETIME(j.jam_angka, 0, 0)
     )
     SELECT 
         CONCAT(LPAD(jam_angka, 2, '0'), ':00') AS label,
-        COALESCE(MAX(tgtQtyPJam), 0) AS target,
-        COALESCE(SUM(allocated_total), 0) AS actual,
-        COALESCE(SUM(allocated_ok), 0) AS actual_ok,
-        COALESCE(SUM(allocated_ng), 0) AS actual_ng,
+        
+        -- Target = (Detik di Slot Ini / 3600) * Target Per Jam
+        -- Ini menjamin konsistensi penjumlahan dengan Level 2
+        COALESCE(SUM((seconds_in_slot / 3600.0) * tgtQtyPJam), 0) AS target,
+        
+        -- Actual & NG dialokasikan berdasarkan rasio waktu
+        COALESCE(SUM(ROUND(Total * (seconds_in_slot / total_duration_sec))), 0) AS actual,
+        COALESCE(SUM(ROUND(NG * (seconds_in_slot / total_duration_sec))), 0) AS actual_ng,
+        
         CONCAT(COALESCE(MAX(itemName), '-'), ' (', COALESCE(MAX(operator), '-'), ')') AS extra_info
     FROM raw_data
     GROUP BY jam_angka

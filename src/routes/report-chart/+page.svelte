@@ -8,16 +8,17 @@
     Chart.register(annotationPlugin);
 
     let selectedDate = new Date().toISOString().split('T')[0];
-    let isLoading = true; // Set default true
+    let isLoading = true; 
     
-    // Pastikan URL sesuai dengan backend Anda (port 8080)
+    // Pastikan URL kosong jika proxy sudah diatur di vite.config.ts, atau isi jika perlu full URL
     const API_URL = '';
 
+    // 1. UPDATE STRUKTUR DATA: Tambahkan field 'ng'
     let dashboardData = {
-        mixing: { total: 0, pending: 0, completed: 0 },
-        cutting: { total: 0, pending: 0, completed: 0 },
-        pressing: { total: 0, pending: 0, completed: 0 },
-        finishing: { total: 0, pending: 0, completed: 0 }
+        mixing: { total: 0, pending: 0, completed: 0, ng: 0 },
+        cutting: { total: 0, pending: 0, completed: 0, ng: 0 },
+        pressing: { total: 0, pending: 0, completed: 0, ng: 0 },
+        finishing: { total: 0, pending: 0, completed: 0, ng: 0 }
     };
 
     let charts: { [key: string]: { total?: Chart; status?: Chart } } = {};
@@ -72,7 +73,6 @@
     async function fetchDashboardData() {
         isLoading = true;
         try {
-            // Mengambil data hari ini
             const res = await fetch(`${API_URL}/api/chart/manager?tanggal=${selectedDate}`, {
                 headers: { Authorization: `Bearer ${$auth.token}` }
             });
@@ -80,15 +80,15 @@
             if (res.ok) {
                 const result = await res.json();
                 
-                // Reset data sebelum diisi
+                // Reset data
                 const newData = {
-                    mixing: { total: 0, pending: 0, completed: 0 },
-                    cutting: { total: 0, pending: 0, completed: 0 },
-                    pressing: { total: 0, pending: 0, completed: 0 },
-                    finishing: { total: 0, pending: 0, completed: 0 }
+                    mixing: { total: 0, pending: 0, completed: 0, ng: 0 },
+                    cutting: { total: 0, pending: 0, completed: 0, ng: 0 },
+                    pressing: { total: 0, pending: 0, completed: 0, ng: 0 },
+                    finishing: { total: 0, pending: 0, completed: 0, ng: 0 }
                 };
 
-                // Mapping dari Label Database ke Key Frontend
+                // Mapping Data
                 result.forEach((item: any) => {
                     let key = '';
                     const label = item.label ? item.label.toUpperCase() : '';
@@ -102,7 +102,8 @@
                         newData[key as keyof typeof newData] = {
                             total: item.target, 
                             completed: item.actual,
-                            pending: Math.max(0, item.target - item.actual)
+                            pending: Math.max(0, item.target - item.actual),
+                            ng: item.actual_ng || 0 // 2. UPDATE: Ambil data NG dari backend
                         };
                     }
                 });
@@ -113,7 +114,6 @@
             console.error('Error fetching dashboard data:', error);
         } finally {
             isLoading = false;
-            // Panggil initializeCharts setelah data selesai dimuat
             initializeCharts();
         }
     }
@@ -123,25 +123,106 @@
             divisions.forEach((division) => {
                 const data = dashboardData[division.id as keyof typeof dashboardData];
                 
-                // Hancurkan chart lama jika ada agar tidak tumpuk
                 if (charts[division.id]?.total) charts[division.id].total?.destroy();
                 if (charts[division.id]?.status) charts[division.id].status?.destroy();
 
-                const productionTarget = 35; 
-                const notGoodTarget = 5; 
+                // 3. LOGIKA TARGET DINAMIS
+                const productionTarget = data.total || 0; 
+                const notGoodTarget = Math.ceil(productionTarget * 0.02); // Max NG = 2% dari Target
                 
+                // Chart Total
                 const totalCanvasId = `chart-total-${division.id}`;
                 const totalCanvas = document.getElementById(totalCanvasId) as HTMLCanvasElement;
                 if (totalCanvas) {
+                    // Agar garis target tidak kepotong di atas
+                    const maxValue = Math.max(productionTarget, (data.completed || 0) + (data.pending || 0)) * 1.2;
+
                     const newChart = new Chart(totalCanvas, {
                         type: 'bar',
                         data: {
-                            labels: ['total produksi'],
+                            labels: ['Total Produksi'],
                             datasets: [
                                 {
-                                    label: 'Produk',
-                                    data: [data.completed || 0, data.pending || 0],
+                                    label: 'Actual',
+                                    data: [data.completed || 0],
                                     backgroundColor: '#3b82f6',
+                                    borderRadius: 4,
+                                    borderSkipped: false,
+                                    stack: 'Stack 0'
+                                },
+                                {
+                                    label: 'Pending',
+                                    data: [data.pending || 0],
+                                    backgroundColor: '#e2e8f0', 
+                                    borderRadius: 4,
+                                    borderSkipped: false,
+                                    stack: 'Stack 0'
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                    padding: 8
+                                },
+                                annotation: {
+                                    annotations: {
+                                        targetLine: {
+                                            type: 'line',
+                                            yMin: productionTarget,
+                                            yMax: productionTarget,
+                                            borderColor: '#10b981',
+                                            borderWidth: 2,
+                                            borderDash: [5, 5],
+                                            label: {
+                                                content: `Target: ${productionTarget}`,
+                                                display: true,
+                                                position: 'end',
+                                                backgroundColor: '#10b981',
+                                                color: 'white',
+                                                font: { size: 10, weight: 'bold' },
+                                                padding: 4,
+                                                borderRadius: 4,
+                                                yAdjust: -10
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    max: maxValue, 
+                                    ticks: { font: { size: 10 } },
+                                    grid: { color: '#f0f0f0' }
+                                },
+                                x: { display: false }
+                            }
+                        }
+                    });
+                    if (!charts[division.id]) charts[division.id] = {};
+                    charts[division.id].total = newChart;
+                }
+
+                // Chart NG
+                const notGoodCanvasId = `chart-notgood-${division.id}`;
+                const notGoodCanvas = document.getElementById(notGoodCanvasId) as HTMLCanvasElement;
+                if (notGoodCanvas) {
+                    const notGoodCount = data.ng || 0; // 4. DATA NG REAL
+                    
+                    const newChart = new Chart(notGoodCanvas, {
+                        type: 'bar',
+                        data: {
+                            labels: ['NG'],
+                            datasets: [
+                                {
+                                    label: 'Status',
+                                    data: [notGoodCount], // Hapus dummy goodCount
+                                    backgroundColor: '#ef4444',
                                     borderRadius: 4,
                                     borderSkipped: false
                                 }
@@ -155,73 +236,16 @@
                                 tooltip: {
                                     backgroundColor: 'rgba(0, 0, 0, 0.8)',
                                     padding: 8,
-                                    displayColors: false
-                                },
-                                annotation: {
-                                    annotations: {
-                                        targetLine: {
-                                            type: 'line',
-                                            yMin: productionTarget,
-                                            yMax: productionTarget,
-                                            borderColor: '#10b981',
-                                            borderWidth: 2,
-                                            borderDash: [5, 5],
-                                            label: {
-                                                content: `Target: ${productionTarget}`,
-                                                position: 'end',
-                                                backgroundColor: '#10b981',
-                                                color: 'white',
-                                                font: { size: 10 }
-                                            }
+                                    displayColors: false,
+                                    callbacks: {
+                                        label: function(context) {
+                                            return `NG: ${context.raw} pcs`;
                                         }
                                     }
-                                }
-                            },
-                            scales: {
-                                y: {
-                                    beginAtZero: true,
-                                    ticks: { font: { size: 10 } },
-                                    grid: { color: '#f0f0f0' }
                                 },
-                                x: {
-                                    ticks: { font: { size: 10, weight: 'bold' } },
-                                    grid: { display: false }
-                                }
-                            }
-                        }
-                    });
-                    if (!charts[division.id]) charts[division.id] = {};
-                    charts[division.id].total = newChart;
-                }
-
-                const notGoodCanvasId = `chart-notgood-${division.id}`;
-                const notGoodCanvas = document.getElementById(notGoodCanvasId) as HTMLCanvasElement;
-                if (notGoodCanvas) {
-                    const notGoodCount = Math.floor((data.pending || 0) * 0.4); // Dummy logic for NG
-                    const goodCount = (data.pending || 0) - notGoodCount;
-                    
-                    const newChart = new Chart(notGoodCanvas, {
-                        type: 'bar',
-                        data: {
-                            labels: ['NG'],
-                            datasets: [
-                                {
-                                    label: 'Status',
-                                    data: [notGoodCount, goodCount],
-                                    backgroundColor: '#ef4444',
-                                    borderRadius: 4,
-                                    borderSkipped: false
-                                }
-                            ]
-                        },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: true,
-                            plugins: {
-                                legend: { display: false },
                                 annotation: {
                                     annotations: {
-                                        targetLine: {
+                                        limitLine: {
                                             type: 'line',
                                             yMin: notGoodTarget,
                                             yMax: notGoodTarget,
@@ -229,11 +253,15 @@
                                             borderWidth: 2,
                                             borderDash: [5, 5],
                                             label: {
-                                                content: `Target: ${notGoodTarget}`,
+                                                content: `Max: ${notGoodTarget}`,
+                                                display: true,
                                                 position: 'end',
                                                 backgroundColor: '#f59e0b',
                                                 color: 'white',
-                                                font: { size: 10 }
+                                                font: { size: 10, weight: 'bold' },
+                                                padding: 4,
+                                                borderRadius: 4,
+                                                yAdjust: -10
                                             }
                                         }
                                     }
@@ -242,13 +270,11 @@
                             scales: {
                                 y: {
                                     beginAtZero: true,
+                                    suggestedMax: Math.max(notGoodCount, notGoodTarget) * 1.5,
                                     ticks: { font: { size: 10 } },
                                     grid: { color: '#f0f0f0' }
                                 },
-                                x: {
-                                    ticks: { font: { size: 10, weight: 'bold' } },
-                                    grid: { display: false }
-                                }
+                                x: { display: false }
                             }
                         }
                     });
