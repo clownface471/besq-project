@@ -34,15 +34,15 @@
     reject: "",
   });
 
-  const employee = {
-    name: "Tono Widiyanto",
-    position: "Senior Cutting Specialist",
-    department: "Production - Cutting",
-    nik: "KRTP-2023-0456",
-    phone: "+62 812-3456-7890",
-    photo:
-      "https://i.pinimg.com/550x/26/38/08/2638086da29fccffa32c5666ea77ce09.jpg",
-  };
+  // ===== PERBAIKAN: Data Karyawan mengambil dari kolom 'nama' dan 'emailAddr' =====
+  let employee = $derived({
+    name: $auth.user?.name || "Operator",        // Ambil dari column 'nama' (bukan nik!)
+    position: "Senior Cutting Specialist",         
+    department: "Production - Cutting",     
+    nik: $auth.user?.username || "N/A",          // NIK dari column 'nik' 
+    email: $auth.user?.email || "-",             // Email dari column 'emailAddr'
+    photo: `https://ui-avatars.com/api/?name=${encodeURIComponent($auth.user?.name || 'User')}&background=random`  // Avatar pakai nama
+  });
 
   let dailyCompounds = $state([
     { day: "Senin", short: "Sen", target: 4, actual: 4, efficiency: 100 },
@@ -90,9 +90,9 @@
   ]);
 
   // ===== LHC (Laporan Hasil Cutting) State =====
-  let lhcData = $state({
-    operatorName: "Tono Widiyanto",
-    nik: "KRTP-2023-0456",
+  let lhcData = $derived({
+    operatorName: employee.name,
+    nik: employee.nik,
     tanggal: new Date().toLocaleDateString("id-ID"),
     shift: "I",
   });
@@ -408,22 +408,23 @@
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
-                    ><path
+                  >
+                    <path
                       stroke-linecap="round"
                       stroke-linejoin="round"
                       stroke-width="2"
-                      d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                    /></svg
-                  >
+                      d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                    />
+                  </svg>
                 </div>
                 <div class="text-left overflow-hidden">
                   <p
                     class="text-xs text-slate-400 font-bold uppercase truncate"
                   >
-                    Telepon
+                    Email
                   </p>
-                  <p class="font-medium text-slate-800 truncate">
-                    {employee.phone}
+                  <p class="font-medium text-slate-800 truncate text-xs">
+                    {employee.email}
                   </p>
                 </div>
               </div>
@@ -531,7 +532,7 @@
         <div class="mt-4 pt-4 border-t border-slate-100 text-center">
           <p class="text-sm text-slate-600">
             Kurang <strong class="text-rose-500"
-              >{monthlyData.todayTarget - monthlyData.todayCompleted} lot</strong
+              >{Math.max(0, monthlyData.todayTarget - monthlyData.todayCompleted)} lot</strong
             > lagi untuk mencapai target.
           </p>
         </div>
@@ -676,7 +677,7 @@
             </label>
             <input
               type="text"
-              bind:value={lhcData.operatorName}
+              value={lhcData.operatorName}
               class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
               disabled
             />
@@ -688,7 +689,7 @@
             </label>
             <input
               type="text"
-              bind:value={lhcData.nik}
+              value={lhcData.nik}
               class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
               disabled
             />
@@ -700,7 +701,7 @@
             </label>
             <input
               type="text"
-              bind:value={lhcData.tanggal}
+              value={lhcData.tanggal}
               class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
               disabled
             />
@@ -712,7 +713,7 @@
             </label>
             <input
               type="text"
-              bind:value={lhcData.shift}
+              value={lhcData.shift}
               class="w-full px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
               disabled
             />
