@@ -274,3 +274,110 @@ func CreateLWP(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "LWP Created", "data": cycle})
 }
+
+// GET: /api/pressing/weekly-stats
+func GetPressingWeeklyStats(c *gin.Context) {
+	namaOperator := c.Query("nama")
+	if namaOperator == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Parameter 'nama' operator wajib diisi"})
+		return
+	}
+
+	// Hitung tanggal 7 hari yang lalu
+	endDate := time.Now()
+	startDate := endDate.AddDate(0, 0, -6) // 6 hari ke belakang + hari ini = 7 hari
+
+	type DailyStats struct {
+		Tanggal    time.Time `json:"tanggal"`
+		Total      int       `json:"total"`
+		OK         int       `json:"ok"`
+		NG         int       `json:"ng"`
+		Efficiency float64   `json:"efficiency"`
+	}
+
+	// HAPUS BARIS INI - tidak digunakan:
+	// var dailyStats []DailyStats
+
+	// Query untuk aggregate data per hari
+	query := `
+		SELECT 
+			DATE(CONCAT(thn, '-', LPAD(bln, 2, '0'), '-', LPAD(tgl, 2, '0'))) as tanggal,
+			COALESCE(SUM(TOTAL), 0) as total,
+			COALESCE(SUM(OK), 0) as ok,
+			COALESCE(SUM(NG), 0) as ng
+		FROM vtrx_lwp_prs
+		WHERE nama = ?
+			AND DATE(CONCAT(thn, '-', LPAD(bln, 2, '0'), '-', LPAD(tgl, 2, '0'))) BETWEEN ? AND ?
+		GROUP BY DATE(CONCAT(thn, '-', LPAD(bln, 2, '0'), '-', LPAD(tgl, 2, '0')))
+		ORDER BY tanggal ASC
+	`
+
+	rows, err := database.MySQL.Raw(query, namaOperator, startDate.Format("2006-01-02"), endDate.Format("2006-01-02")).Rows()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal query data mingguan: " + err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	// Map untuk menyimpan data per tanggal
+	dataMap := make(map[string]DailyStats)
+	for rows.Next() {
+		var stat DailyStats
+		if err := rows.Scan(&stat.Tanggal, &stat.Total, &stat.OK, &stat.NG); err != nil {
+			continue
+		}
+		
+		// Hitung efficiency
+		if stat.Total > 0 {
+			stat.Efficiency = (float64(stat.OK) / float64(stat.Total)) * 100
+		}
+		
+		dataMap[stat.Tanggal.Format("2006-01-02")] = stat
+	}
+
+	// Format data untuk frontend (pastikan 7 hari lengkap)
+	dayNames := []string{"Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"}
+	dayShorts := []string{"Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"}
+	
+	var weeklyData []gin.H
+	
+	for i := 0; i < 7; i++ {
+		currentDate := startDate.AddDate(0, 0, i)
+		dateKey := currentDate.Format("2006-01-02")
+		dayOfWeek := int(currentDate.Weekday())
+		
+		stat, exists := dataMap[dateKey]
+		if !exists {
+			stat = DailyStats{
+				Tanggal:    currentDate,
+				Total:      0,
+				OK:         0,
+				NG:         0,
+				Efficiency: 0,
+			}
+		}
+		
+		weeklyData = append(weeklyData, gin.H{
+			"day":        dayNames[dayOfWeek],
+			"short":      dayShorts[dayOfWeek],
+			"date":       dateKey,
+			"total":      stat.Total,
+			"ok":         stat.OK,
+			"ng":         stat.NG,
+			"efficiency": stat.Efficiency,
+		})
+	}
+
+	// Hitung summary untuk hari ini
+	today := endDate.Format("2006-01-02")
+	todayStats, _ := dataMap[today]
+
+	c.JSON(http.StatusOK, gin.H{
+		"weeklyData": weeklyData,
+		"summary": gin.H{
+			"todayCompleted": todayStats.OK,
+			"todayTarget":    60, // Bisa disesuaikan dengan target real
+			"efficiency":     int(todayStats.Efficiency),
+		},
+	})
+}

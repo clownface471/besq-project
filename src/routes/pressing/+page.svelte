@@ -9,6 +9,7 @@
   // ===== Svelte 5 $state for reactive data =====
   
   let isLoading = $state(false);
+  let isLoadingWeekly = $state(false);
   let errorMessage = $state("");
   let successMessage = $state("");
 
@@ -19,7 +20,7 @@
     reject: "",
   });
 
-  // ===== PERBAIKAN: Data Karyawan mengambil dari kolom 'nama' dan 'emailAddr' =====
+  // ===== Data Karyawan mengambil dari kolom 'nama' dan 'emailAddr' =====
   let employee = $derived({
     name: $auth.user?.name || "Operator",
     position: "Pressing Specialist",         
@@ -29,160 +30,16 @@
     photo: `https://ui-avatars.com/api/?name=${encodeURIComponent($auth.user?.name || 'User')}&background=random`
   });
 
-  // ===== NEW: Data 7 Hari untuk Chart Produksi =====
-  let weeklyProductionData = $state<any[]>([
-    {
-      day: "Senin",
-      short: "Sen",
-      date: "2024-02-12",
-      operators: [
-        {
-          name: "Budi Santoso",
-          machines: [
-            { machineNo: "M-01", ok: 120, ng: 8, color: "bg-blue-500" },
-            { machineNo: "M-03", ok: 95, ng: 5, color: "bg-blue-400" }
-          ]
-        },
-        {
-          name: "Ahmad Yani",
-          machines: [
-            { machineNo: "M-02", ok: 110, ng: 10, color: "bg-emerald-500" }
-          ]
-        }
-      ]
-    },
-    {
-      day: "Selasa",
-      short: "Sel",
-      date: "2024-02-13",
-      operators: [
-        {
-          name: "Budi Santoso",
-          machines: [
-            { machineNo: "M-01", ok: 115, ng: 7, color: "bg-blue-500" }
-          ]
-        },
-        {
-          name: "Ahmad Yani",
-          machines: [
-            { machineNo: "M-02", ok: 105, ng: 12, color: "bg-emerald-500" },
-            { machineNo: "M-04", ok: 80, ng: 6, color: "bg-emerald-400" }
-          ]
-        },
-        {
-          name: "Siti Nurhaliza",
-          machines: [
-            { machineNo: "M-05", ok: 90, ng: 5, color: "bg-purple-500" }
-          ]
-        }
-      ]
-    },
-    {
-      day: "Rabu",
-      short: "Rab",
-      date: "2024-02-14",
-      operators: [
-        {
-          name: "Budi Santoso",
-          machines: [
-            { machineNo: "M-01", ok: 125, ng: 6, color: "bg-blue-500" },
-            { machineNo: "M-03", ok: 100, ng: 4, color: "bg-blue-400" }
-          ]
-        },
-        {
-          name: "Ahmad Yani",
-          machines: [
-            { machineNo: "M-02", ok: 118, ng: 9, color: "bg-emerald-500" }
-          ]
-        }
-      ]
-    },
-    {
-      day: "Kamis",
-      short: "Kam",
-      date: "2024-02-15",
-      operators: [
-        {
-          name: "Budi Santoso",
-          machines: [
-            { machineNo: "M-01", ok: 112, ng: 8, color: "bg-blue-500" }
-          ]
-        },
-        {
-          name: "Siti Nurhaliza",
-          machines: [
-            { machineNo: "M-05", ok: 95, ng: 7, color: "bg-purple-500" },
-            { machineNo: "M-06", ok: 88, ng: 5, color: "bg-purple-400" }
-          ]
-        }
-      ]
-    },
-    {
-      day: "Jumat",
-      short: "Jum",
-      date: "2024-02-16",
-      operators: [
-        {
-          name: "Budi Santoso",
-          machines: [
-            { machineNo: "M-01", ok: 120, ng: 10, color: "bg-blue-500" },
-            { machineNo: "M-03", ok: 98, ng: 6, color: "bg-blue-400" }
-          ]
-        },
-        {
-          name: "Ahmad Yani",
-          machines: [
-            { machineNo: "M-02", ok: 115, ng: 8, color: "bg-emerald-500" }
-          ]
-        },
-        {
-          name: "Siti Nurhaliza",
-          machines: [
-            { machineNo: "M-05", ok: 92, ng: 6, color: "bg-purple-500" }
-          ]
-        }
-      ]
-    },
-    {
-      day: "Sabtu",
-      short: "Sab",
-      date: "2024-02-17",
-      operators: [
-        {
-          name: "Budi Santoso",
-          machines: [
-            { machineNo: "M-01", ok: 85, ng: 5, color: "bg-blue-500" }
-          ]
-        },
-        {
-          name: "Ahmad Yani",
-          machines: [
-            { machineNo: "M-02", ok: 80, ng: 7, color: "bg-emerald-500" }
-          ]
-        }
-      ]
-    },
-    {
-      day: "Minggu",
-      short: "Min",
-      date: "2024-02-18",
-      operators: []
-    }
-  ]);
-
-  // Hitung max value untuk scaling chart
-  const maxProductionValue = $derived.by(() => {
-    let max = 0;
-    weeklyProductionData.forEach(day => {
-      day.operators.forEach((op: any) => {
-        op.machines.forEach((m: any) => {
-          const total = m.ok + m.ng;
-          if (total > max) max = total;
-        });
-      });
-    });
-    return Math.max(max, 150);
-  });
+  // ===== PERUBAHAN: Data grafik dari database =====
+  let dailyData = $state<{
+    day: string;
+    short: string;
+    date: string;
+    total: number;
+    ok: number;
+    ng: number;
+    efficiency: number;
+  }[]>([]);
 
   let monthlyData = $state({
     completed: 0,
@@ -217,7 +74,7 @@
 
   let isLwpFormOpen = $state(false);
 
-  // Tambah state untuk status mesin
+  // Tambah state untuk status mesin (NoMesin, Item, NoLot, Operator)
   let machineStatuses = $state<any[]>([]);
 
   // Fungsi untuk membangun machineStatuses dari lwpRecords
@@ -235,8 +92,65 @@
     }
   }
 
+  // Logic untuk Bar Chart Scale
+  let maxChartValue = $derived(
+    Math.max(
+      ...dailyData.map((d) => d.total),
+      6
+    )
+  );
+
   // ===== API Functions =====
 
+  // Load data grafik operator untuk 7 hari terakhir
+  async function loadOperatorWeeklyData() {
+    isLoadingWeekly = true;
+    errorMessage = "";
+
+    try {
+      const authToken = get(auth).token;
+      if (!authToken) {
+        errorMessage = "Sesi habis. Silakan login ulang.";
+        return;
+      }
+
+      // Ambil nama operator dari auth
+      const operatorName = employee.name;
+
+      const response = await fetch(`${API_URL}/api/pressing/weekly-stats?nama=${encodeURIComponent(operatorName)}`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Gagal memuat data mingguan");
+      }
+
+      const data = await response.json();
+      
+      // Update dailyData dengan data dari backend
+      if (data.weeklyData && Array.isArray(data.weeklyData)) {
+        dailyData = data.weeklyData;
+      }
+
+      // Update monthlyData jika ada
+      if (data.summary) {
+        monthlyData = {
+          ...monthlyData,
+          ...data.summary
+        };
+      }
+
+    } catch (error) {
+      errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan";
+      console.error("Error loading weekly data:", error);
+    } finally {
+      isLoadingWeekly = false;
+    }
+  }
+
+  // Load today's pressing data from API
   async function loadData() {
     isLoading = true;
     errorMessage = "";
@@ -260,8 +174,10 @@
 
       const data = await response.json();
       
+      // Update state dengan data dari backend
       if (data.stats) monthlyData = data.stats;
       
+      // Jika API mengembalikan LWP, update lwpRecords
       if (data.lwpRecords) {
         lwpRecords = data.lwpRecords.map((cycle: any) => ({
              noMesin: cycle.no_mc,
@@ -280,11 +196,8 @@
              }]
         }));
       }
-
-      if (data.weeklyProduction) {
-        weeklyProductionData = data.weeklyProduction;
-      }
       
+      // update machineStatuses setiap kali data LWP/records berubah
       updateMachineStatuses();
 
     } catch (error) {
@@ -295,10 +208,12 @@
     }
   }
 
+  // Fungsi Scan Mesin (Navigasi)
   function handleScanMachine() {
     goto("/scan-mesin");
   }
 
+  // Fungsi Scan KPCP (Navigasi)
   function handleScanKPCP() {
      goto("/scan-barcode-prs");
   }
@@ -307,6 +222,7 @@
      goto("/lwp-setup");
   }
 
+  // --- FUNGSI BARU: RECORD CYCLE ---
   async function handleRecordCycle(machine: any) {
     const authToken = get(auth).token;
     if (!authToken) {
@@ -343,6 +259,7 @@
     }
   }
   
+  // Helper functions untuk perhitungan tabel
   function getTotalOkForMachine(machine: any) {
     if(!machine.details) return 0;
     return machine.details.reduce((sum: number, d: any) => sum + (d.hasilOk || 0), 0);
@@ -360,6 +277,18 @@
     return total > 0 ? ((totalOk / total) * 100).toFixed(1) : 0;
   }
 
+  function getEfficiencyColor(efficiency: number) {
+    if (efficiency >= 100) return "text-emerald-600 bg-emerald-50 border-emerald-100";
+    if (efficiency >= 80) return "text-amber-600 bg-amber-50 border-amber-100";
+    return "text-rose-600 bg-rose-50 border-rose-100";
+  }
+
+  function getBarColor(efficiency: number) {
+    if (efficiency >= 100) return "bg-emerald-500 from-emerald-500 to-emerald-400";
+    if (efficiency >= 80) return "bg-amber-500 from-amber-500 to-amber-400";
+    return "bg-rose-500 from-rose-500 to-rose-400";
+  }
+
   function getRejectColor(classify: string) {
     if (classify === "Cacat Permukaan") return "bg-red-50 text-red-700 border-red-200";
     if (classify === "Dimensi") return "bg-yellow-50 text-yellow-700 border-yellow-200";
@@ -367,8 +296,10 @@
     return "bg-slate-50 text-slate-700 border-slate-200";
   }
 
+  // Load data on mount
   onMount(() => {
     loadData();
+    loadOperatorWeeklyData();
   });
 </script>
 
@@ -376,57 +307,121 @@
   <div class="absolute inset-0 z-0 opacity-[0.03] pointer-events-none" style="background-image: radial-gradient(#4f46e5 1px, transparent 1px); background-size: 24px 24px;"></div>
 
   <header class="sticky top-0 md:static z-50 transition-all duration-300">
-    <div class="bg-white/80 backdrop-blur-md md:bg-transparent border-b border-slate-200 md:border-none shadow-sm md:shadow-none">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 flex justify-between items-center">
+    <div
+      class="bg-white/80 backdrop-blur-md md:bg-transparent border-b border-slate-200 md:border-none shadow-sm md:shadow-none"
+    >
+      <div
+        class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 flex justify-between items-center"
+      >
         <div class="flex items-center gap-4">
-          <div class="md:hidden w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-500/30">D</div>
+          <div
+            class="md:hidden w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-500/30"
+          >
+            D
+          </div>
           <div>
-            <h1 class="text-xl md:text-3xl font-bold text-slate-800 md:text-white tracking-tight">Dashboard Karyawan</h1>
+            <h1
+              class="text-xl md:text-3xl font-bold text-slate-800 md:text-white tracking-tight"
+            >
+              Dashboard Karyawan
+            </h1>
             <div class="flex items-center gap-2 mt-1">
               <span class="relative flex h-2 w-2 md:hidden">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                <span
+                  class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"
+                ></span>
+                <span
+                  class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"
+                ></span>
               </span>
-              <p class="text-xs text-slate-500 md:text-indigo-200 font-medium">Selamat datang kembali, Semangat Bekerja!</p>
+              <p class="text-xs text-slate-500 md:text-indigo-200 font-medium">
+                Selamat datang kembali, Semangat Bekerja!
+              </p>
             </div>
           </div>
         </div>
 
-        <button class="group relative overflow-hidden px-4 py-2 md:px-5 md:py-2.5 rounded-xl transition-all duration-300
+        <button
+         
+          class="group relative overflow-hidden px-4 py-2 md:px-5 md:py-2.5 rounded-xl transition-all duration-300
                        bg-white border border-slate-200 text-slate-600 hover:text-rose-600 hover:border-rose-200 hover:shadow-lg
-                       md:bg-white/10 md:border-white/20 md:text-white md:hover:bg-white/20">
+                       md:bg-white/10 md:border-white/20 md:text-white md:hover:bg-white/20"
+        >
           <div class="flex items-center gap-2 relative z-10">
             <span class="hidden md:inline text-sm font-semibold">Logout</span>
-            <svg class="w-5 h-5 md:w-4 md:h-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
+            <svg
+              class="w-5 h-5 md:w-4 md:h-4 transition-transform group-hover:translate-x-1"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              ><path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+              /></svg
+            >
           </div>
         </button>
       </div>
     </div>
   </header>
 
-  <div class="fixed bottom-6 right-6 md:bottom-auto md:top-1/2 md:right-0 md:-translate-y-1/2 z-[100]">
-    <button onclick={() => (window.location.href = "/scan")} class="md:hidden w-16 h-16 bg-indigo-600 rounded-full shadow-2xl flex items-center justify-center text-white active:scale-95 transition-transform border-4 border-white">
-      <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+  <div
+    class="fixed bottom-6 right-6 md:bottom-auto md:top-1/2 md:right-0 md:-translate-y-1/2 z-[100]"
+  >
+    <button
+      onclick={() => (window.location.href = "/scan")}
+      class="md:hidden w-16 h-16 bg-indigo-600 rounded-full shadow-2xl flex items-center justify-center text-white active:scale-95 transition-transform border-4 border-white"
+    >
+      <svg
+        class="w-8 h-8"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
+        />
       </svg>
     </button>
 
-    <button onclick={() => (window.location.href = "/scan")} class="hidden md:flex items-center gap-3 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-4 rounded-l-2xl shadow-xl transition-all duration-300 hover:pr-10 group">
-      <svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+    <button
+      onclick={() => (window.location.href = "/scan")}
+      class="hidden md:flex items-center gap-3 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-4 rounded-l-2xl shadow-xl transition-all duration-300 hover:pr-10 group"
+    >
+      <svg
+        class="w-6 h-6 animate-pulse"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
+        />
       </svg>
       <div class="text-left">
-        <p class="text-xs font-bold uppercase tracking-widest opacity-70">Sistem</p>
+        <p class="text-xs font-bold uppercase tracking-widest opacity-70">
+          Sistem
+        </p>
         <p class="font-bold">Scan Machine</p>
       </div>
     </button>
   </div>
 
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:mt-6 relative z-10 space-y-6">
-    <!-- Employee Profile Card -->
-    <div class="bg-white rounded-2xl shadow-md border border-slate-100 overflow-visible group hover:shadow-lg transition-all duration-500 mx-auto w-full">
+  <main
+    class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:mt-6 relative z-10 space-y-6"
+  >
+    <div
+      class="bg-white rounded-2xl shadow-md border border-slate-100 overflow-visible group hover:shadow-lg transition-all duration-500 mx-auto w-full"
+    >
+
       <div class="p-6 md:p-10">
         <div class="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start">
           <div class="relative shrink-0 -mt-16 md:-mt-8 group-hover:-translate-y-2 transition-transform duration-500">
@@ -491,7 +486,6 @@
       </div>
     </div>
 
-    <!-- Status Mesin Table -->
     <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 lg:p-8 mb-6">
       <div class="flex items-center justify-between mb-4">
         <div>
@@ -544,7 +538,6 @@
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <!-- Target Hari Ini -->
       <div class="bg-white rounded-3xl p-6 lg:p-8 shadow-sm border border-slate-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 flex flex-col h-full">
         <div class="flex justify-between items-start mb-4">
           <div>
@@ -582,150 +575,53 @@
         </div>
       </div>
 
-      <!-- NEW: 7-Day Production Chart -->
-      <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 lg:p-8">
+      <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 lg:p-8 flex flex-col h-full">
         <div class="flex justify-between items-center mb-6">
-          <div>
-            <h3 class="font-bold text-slate-800 text-lg">Produktivitas 7 Hari Terakhir</h3>
-            <p class="text-sm text-slate-500">Produksi OK & NG per operator dan mesin</p>
-          </div>
-          <span class="text-xs font-medium bg-slate-100 text-slate-500 px-3 py-1.5 rounded-lg">Per Operator & Mesin</span>
+          <h3 class="font-bold text-slate-800 text-lg">Produktivitas Mingguan</h3>
+          <span class="text-xs font-medium bg-slate-100 text-slate-500 px-2 py-1 rounded-md">7 Hari Terakhir</span>
         </div>
 
-        <!-- Desktop Chart -->
-        <div class="hidden md:block">
-          <div class="flex items-end justify-between gap-6 h-80 pb-2 border-b border-slate-100">
-            {#each weeklyProductionData as day}
-              <div class="flex-1 flex flex-col items-center justify-end h-full">
-                <!-- Grouped Bars per Day -->
-                <div class="flex items-end justify-center gap-1 w-full h-full">
-                  {#each day.operators as operator, opIdx}
-                    <div class="flex gap-0.5 items-end h-full">
-                      {#each operator.machines as machine, machineIdx}
-                        {@const total = machine.ok + machine.ng}
-                        {@const okHeight = (machine.ok / maxProductionValue) * 100}
-                        {@const ngHeight = (machine.ng / maxProductionValue) * 100}
-                        
-                        <div class="group relative flex flex-col items-center justify-end h-full">
-                          <!-- Tooltip -->
-                          <div class="absolute -top-20 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs py-2 px-3 rounded-lg whitespace-nowrap z-10 pointer-events-none shadow-xl">
-                            <div class="font-bold text-center mb-1">{operator.name}</div>
-                            <div class="text-slate-300">{machine.machineNo}</div>
-                            <div class="border-t border-slate-600 mt-1 pt-1">
-                              <div class="flex justify-between gap-3">
-                                <span class="text-emerald-300">OK:</span>
-                                <span class="font-bold">{machine.ok}</span>
-                              </div>
-                              <div class="flex justify-between gap-3">
-                                <span class="text-rose-300">NG:</span>
-                                <span class="font-bold">{machine.ng}</span>
-                              </div>
-                              <div class="flex justify-between gap-3 border-t border-slate-600 mt-1 pt-1">
-                                <span class="text-white">Total:</span>
-                                <span class="font-bold">{total}</span>
-                              </div>
-                            </div>
-                            <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-slate-800 rotate-45"></div>
-                          </div>
-
-                          <!-- Stacked Bar: OK (bottom) + NG (top) -->
-                          <div class="w-8 bg-slate-50 rounded-t-lg overflow-hidden border border-slate-200 flex flex-col-reverse shadow-sm hover:shadow-md transition-shadow">
-                            <!-- OK Bar (Bottom) -->
-                            <div 
-                              class={`w-full ${machine.color} transition-all duration-700 ease-out`}
-                              style={`height: ${okHeight}%`}
-                            ></div>
-                            <!-- NG Bar (Top, stacked) -->
-                            <div 
-                              class="w-full bg-rose-500 transition-all duration-700 ease-out"
-                              style={`height: ${ngHeight}%`}
-                            ></div>
-                          </div>
-
-                          <!-- Machine Label -->
-                          <div class="mt-1 text-[9px] font-mono text-slate-400 text-center whitespace-nowrap">
-                            {machine.machineNo}
-                          </div>
-                        </div>
-                      {/each}
-                    </div>
-                  {/each}
+        {#if isLoadingWeekly}
+          <div class="flex-1 flex items-center justify-center">
+            <div class="text-center">
+              <div class="inline-block animate-spin">
+                <i class="fa-solid fa-spinner text-indigo-600 text-2xl"></i>
+              </div>
+              <p class="text-slate-500 text-sm mt-2">Memuat data...</p>
+            </div>
+          </div>
+        {:else if dailyData.length === 0}
+          <div class="flex-1 flex items-center justify-center">
+            <p class="text-slate-400 italic">Belum ada data produksi 7 hari terakhir</p>
+          </div>
+        {:else}
+          <div class="hidden md:flex flex-1 items-end justify-between gap-2 md:gap-4 h-52 md:h-64 pb-2 border-b border-slate-100">
+            {#each dailyData as day}
+              <div class="group flex flex-col items-center justify-end h-full w-full relative">
+                <div class="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs py-1 px-2 rounded pointer-events-none mb-2 z-10 whitespace-nowrap">
+                  Total: {day.total} | OK: {day.ok} | NG: {day.ng}
+                  <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-slate-800 rotate-45"></div>
                 </div>
-                
-                <!-- Day Label -->
+                <div class="relative w-full max-w-10 h-full bg-slate-50 rounded-t-lg overflow-hidden flex items-end">
+                  <div class={`w-full rounded-t-lg bg-gradient-to-t transition-all duration-1000 ease-out ${getBarColor(day.efficiency)}`} style={`height: ${day.total > 0 ? (day.total / maxChartValue) * 100 : 0}%`}></div>
+                </div>
                 <div class="mt-3 text-center">
-                  <p class="text-xs font-bold text-slate-600">{day.short}</p>
-                  <p class="text-[10px] text-slate-400 mt-0.5">{day.date.slice(5)}</p>
+                  <p class="text-xs font-bold text-slate-500 group-hover:text-indigo-600 transition-colors">{day.short}</p>
+                  <p class="text-[10px] text-slate-400 font-mono mt-0.5">{day.total}</p>
                 </div>
               </div>
             {/each}
           </div>
-
-          <!-- Legend -->
-          <div class="mt-6 flex flex-wrap justify-center gap-6 text-xs">
-            <div class="flex items-center gap-2">
-              <div class="w-4 h-4 bg-blue-500 rounded"></div>
-              <span class="text-slate-600">Operator 1 - Mesin 1</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <div class="w-4 h-4 bg-blue-400 rounded"></div>
-              <span class="text-slate-600">Operator 1 - Mesin 2</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <div class="w-4 h-4 bg-emerald-500 rounded"></div>
-              <span class="text-slate-600">Operator 2 - Mesin 1</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <div class="w-4 h-4 bg-emerald-400 rounded"></div>
-              <span class="text-slate-600">Operator 2 - Mesin 2</span>
-            </div>
-            <div class="flex items-center gap-2">
-              <div class="w-4 h-4 bg-purple-500 rounded"></div>
-              <span class="text-slate-600">Operator 3 - Mesin 1</span>
-            </div>
-            <div class="flex items-center gap-2 border-l border-slate-300 pl-6">
-              <div class="w-4 h-4 bg-rose-500 rounded"></div>
-              <span class="text-slate-600 font-semibold">NG (Reject)</span>
-            </div>
+          
+          <div class="mt-4 md:mt-4 flex flex-wrap justify-center md:justify-start gap-3 md:gap-4 text-xs text-slate-400 border-t border-slate-100 pt-4 md:pt-0 md:border-t-0">
+            <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-emerald-500 shadow-sm"></span><span class="hidden sm:inline">&gt;100%</span><span class="sm:hidden">Optimal</span></span>
+            <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-500 shadow-sm"></span><span class="hidden sm:inline">&gt;80%</span><span class="sm:hidden">Baik</span></span>
+            <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-rose-500 shadow-sm"></span><span class="hidden sm:inline">&lt;80%</span><span class="sm:hidden">Perlu Tuning</span></span>
           </div>
-        </div>
-
-        <!-- Mobile: Scrollable Cards -->
-        <div class="md:hidden -mx-6 px-6">
-          <div class="flex overflow-x-auto gap-4 pb-4 scrollbar-hide">
-            {#each weeklyProductionData as day}
-              <div class="shrink-0 w-64 bg-slate-50 rounded-xl p-4 border border-slate-200">
-                <div class="font-bold text-slate-800 mb-1">{day.day}</div>
-                <div class="text-xs text-slate-500 mb-3">{day.date}</div>
-                
-                {#if day.operators.length === 0}
-                  <div class="text-center py-6 text-slate-400 text-sm">Libur</div>
-                {:else}
-                  <div class="space-y-3">
-                    {#each day.operators as operator}
-                      <div class="bg-white rounded-lg p-3 border border-slate-200">
-                        <div class="text-xs font-bold text-slate-700 mb-2">{operator.name}</div>
-                        {#each operator.machines as machine}
-                          {@const total = machine.ok + machine.ng}
-                          <div class="flex items-center gap-2 mb-1.5">
-                            <div class={`w-2 h-2 rounded-full ${machine.color}`}></div>
-                            <span class="text-xs font-mono text-slate-600">{machine.machineNo}:</span>
-                            <span class="text-xs"><span class="text-emerald-600 font-bold">{machine.ok}</span> / <span class="text-rose-600 font-bold">{machine.ng}</span></span>
-                            <span class="text-xs text-slate-400 ml-auto">({total})</span>
-                          </div>
-                        {/each}
-                      </div>
-                    {/each}
-                  </div>
-                {/if}
-              </div>
-            {/each}
-          </div>
-        </div>
+        {/if}
       </div>
     </div>
 
-    <!-- Scan KPCP Button -->
     <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 lg:p-8">
       <button
         onclick={handleScanKPCP}
@@ -735,7 +631,6 @@
       </button>
     </div>
 
-    <!-- LWP Section -->
     <div class="space-y-6">
       <div class="bg-white rounded-2xl border-2 border-indigo-100 shadow-sm overflow-hidden">
         <div class="bg-indigo-50 px-6 py-4 border-b border-indigo-100 flex justify-between items-center">
@@ -844,7 +739,6 @@
     </div>
   </main>
 
-  <!-- Floating Scan Machine Button -->
   <div class="fixed bottom-6 right-6 z-50 md:bottom-8 md:right-8">
     <button
       onclick={handleScanMachine}
