@@ -50,8 +50,10 @@ func AuthAndRoleMiddleware(allowedRoles ...string) gin.HandlerFunc {
 			}
 
 			// Set data ke Context
-			c.Set("userRole", userRole)
 			c.Set("userID", claims["user_id"])
+			c.Set("username", claims["username"])
+			c.Set("userRole", claims["role"])
+			c.Set("nama", claims["nama"])
 
 			// --- PERBAIKAN UTAMA DI SINI ---
 			// Cek apakah username ada di dalam token
