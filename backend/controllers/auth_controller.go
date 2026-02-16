@@ -15,27 +15,6 @@ import (
 // ... (CreateOperator tetap sama, tidak perlu diubah) ...
 func CreateOperator(c *gin.Context) {
 	c.JSON(http.StatusMethodNotAllowed, gin.H{"error": "Fitur tambah user dimatikan saat menggunakan DB Perusahaan"})
-	// var input models.RegisterInput
-
-	// if err := c.ShouldBindJSON(&input); err != nil {
-	// 	c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-	// 	return
-	// }
-
-	// hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
-
-	// user := models.User{
-	// 	Username: input.Username,
-	// 	Password: string(hashedPassword),
-	// 	Role:     input.Role,
-	// }
-
-	// if err := database.DB.Create(&user).Error; err != nil {
-	// 	c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal menambah user"})
-	// 	return
-	// }
-
-	// c.JSON(http.StatusOK, gin.H{"message": "Operator berhasil dibuat", "data": user})
 }
 
 var jwtKey = []byte("secret_key_besq_2026")
@@ -67,27 +46,29 @@ func Login(c *gin.Context) {
 	}
 
 	// 3. Tentukan Role (HARDCODE CHECK)
-	// Kita panggil fungsi helper di atas
 	userRole := determineRole(employee.IDEmploy)
 
-	// 4. Generate JWT
+	// 4. Generate JWT - TAMBAHKAN EMAIL
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"user_id":  employee.NIK,      // ID pakai NIK
 		"username": employee.NIK,      // Username pakai NIK
-		"nama":     employee.Nama,     // Nama Asli
+		"nama":     employee.Nama,     // Nama Asli dari kolom 'nama'
+		"email":    employee.EmailAddr, // Email dari kolom 'emailAddr'
 		"role":     userRole,          // Role hasil hardcode
 		"exp":      time.Now().Add(time.Hour * 24).Unix(),
 	})
 
 	tokenString, _ := token.SignedString(jwtKey)
 
-	fmt.Printf("[LOGIN] User: %s | ID: %d | Role Assigned: %s\n", employee.Nama, employee.IDEmploy, userRole)
+	fmt.Printf("[LOGIN] User: %s | ID: %d | Role Assigned: %s | Email: %s\n", 
+		employee.Nama, employee.IDEmploy, userRole, employee.EmailAddr)
 
 	c.JSON(http.StatusOK, gin.H{
 		"token": tokenString,
 		"role":  userRole,
 		"nama":  employee.Nama,
 		"nik":   employee.NIK,
+		"email": employee.EmailAddr, // Tambahkan email dalam response
 	})
 }
 
@@ -98,16 +79,24 @@ func GetUserProfile(c *gin.Context) {
 
 	var emp models.TmEmploy
 	var namaDisplay string
+	var emailDisplay string
 	
 	// Cek context dulu
 	if val, ok := c.Get("nama"); ok {
 		namaDisplay = val.(string)
 	} else {
+		namaDisplay = username.(string)
+	}
+
+	if val, ok := c.Get("email"); ok {
+		emailDisplay = val.(string)
+	} else {
 		// Fallback query
 		if err := database.MySQL.Where("nik = ?", userID).First(&emp).Error; err == nil {
 			namaDisplay = emp.Nama
+			emailDisplay = emp.EmailAddr
 		} else {
-			namaDisplay = username.(string)
+			emailDisplay = "-"
 		}
 	}
 
@@ -117,6 +106,7 @@ func GetUserProfile(c *gin.Context) {
 			"username": username,
 			"role":     role,
 			"name":     namaDisplay,
+			"email":    emailDisplay, // Tambahkan email
 		},
 	})
 }

@@ -2,7 +2,7 @@
   import { onMount } from "svelte";
   import { get } from "svelte/store";
   import { auth } from "$lib/stores/auth";
-  import { goto } from "$app/navigation"; // Gunakan goto untuk navigasi SPA
+  import { goto } from "$app/navigation";
 
   const API_URL = "http://localhost:8080";
 
@@ -19,14 +19,14 @@
     reject: "",
   });
 
-  // Data Karyawan Dinamis (Mengambil dari Login)
+  // ===== PERBAIKAN: Data Karyawan mengambil dari kolom 'nama' dan 'emailAddr' =====
   let employee = $derived({
-    name: $auth.user?.username || "Operator", 
+    name: $auth.user?.name || "Operator",        // Ambil dari column 'nama' (bukan nik!)
     position: "Pressing Specialist",         
     department: "Production - Pressing",     
-    nik: $auth.user?.username || "N/A",      
-    phone: "-",                              
-    photo: `https://ui-avatars.com/api/?name=${$auth.user?.username || 'User'}&background=random`
+    nik: $auth.user?.username || "N/A",          // NIK dari column 'nik' 
+    email: $auth.user?.email || "-",             // Email dari column 'emailAddr'
+    photo: `https://ui-avatars.com/api/?name=${encodeURIComponent($auth.user?.name || 'User')}&background=random`  // Avatar pakai nama
   });
 
   let dailyCompounds = $state([
@@ -44,7 +44,7 @@
     target: 20,
     efficiency: 0,
     todayCompleted: 0,
-    todayTarget: 60, // Default target
+    todayTarget: 60,
   });
 
   // ===== LWP (Laporan Waktu Produksi) Data =====
@@ -164,16 +164,16 @@
 
 // Fungsi Scan Mesin (Navigasi)
   function handleScanMachine() {
-    goto("/scan-mesin"); // HAPUS alert, ganti dengan ini
+    goto("/scan-mesin");
   }
 
   // Fungsi Scan KPCP (Navigasi)
   function handleScanKPCP() {
-     goto("/scan-barcode-prs"); // HAPUS alert, ganti dengan ini
+     goto("/scan-barcode-prs");
   }
 
   function handleInputLWP() {
-     goto("/lwp-setup"); // HAPUS alert, ganti dengan ini
+     goto("/lwp-setup");
   }
 
   // --- FUNGSI BARU: RECORD CYCLE ---
@@ -420,11 +420,13 @@
               </div>
               <div class="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors cursor-default border border-transparent hover:border-slate-100">
                  <div class="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
                  </div>
                  <div class="text-left overflow-hidden">
-                    <p class="text-xs text-slate-400 font-bold uppercase truncate">Telepon</p>
-                    <p class="font-medium text-slate-800 truncate">{employee.phone}</p>
+                    <p class="text-xs text-slate-400 font-bold uppercase truncate">Email</p>
+                    <p class="font-medium text-slate-800 truncate text-xs">{employee.email}</p>
                  </div>
               </div>
               <div class="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors cursor-default border border-transparent hover:border-slate-100">

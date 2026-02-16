@@ -7,6 +7,7 @@ export interface User {
 	role: string;
 	name?: string;
 	nik?: string;
+	email?: string; // Tambahkan field email
 }
 
 interface AuthState {

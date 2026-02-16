@@ -54,17 +54,15 @@ func AuthAndRoleMiddleware(allowedRoles ...string) gin.HandlerFunc {
 			c.Set("username", claims["username"])
 			c.Set("userRole", claims["role"])
 			c.Set("nama", claims["nama"])
+			c.Set("email", claims["email"]) // TAMBAHKAN EMAIL KE CONTEXT
 
-			// --- PERBAIKAN UTAMA DI SINI ---
 			// Cek apakah username ada di dalam token
 			if username, ok := claims["username"].(string); ok {
 				c.Set("username", username)
 			} else {
 				// Fallback jika token lama tidak punya username
-				// Ini mencegah panic "interface conversion: interface {} is nil"
 				c.Set("username", "UNKNOWN_USER")
 			}
-			// -------------------------------
 
 			c.Next()
 		} else {
@@ -74,7 +72,6 @@ func AuthAndRoleMiddleware(allowedRoles ...string) gin.HandlerFunc {
 	}
 }
 
-// ... (ActionMiddleware biarkan tetap sama) ...
 func ActionMiddleware(requiredRole string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userRole, _ := c.Get("userRole")
