@@ -6,6 +6,7 @@ import (
 	"factory-api/database"
 	"factory-api/models"
 	"time"
+	"fmt"
 )
 
 // GET: Melihat status mesin Cutting
@@ -387,6 +388,8 @@ func GetPressingLWPData(c *gin.Context) {
 	namaOperator := c.Query("nik")
 	tanggal := c.Query("tanggal") // Format: YYYY-MM-DD
 	
+	fmt.Printf("[LWP DATA] Request received - NIK: %s, Tanggal: %s\n", namaOperator, tanggal)
+	
 	if namaOperator == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Parameter 'nik' wajib diisi"})
 		return
@@ -400,6 +403,7 @@ func GetPressingLWPData(c *gin.Context) {
 	// Parse tanggal untuk mendapatkan thn, bln, tgl
 	parsedDate, err := time.Parse("2006-01-02", tanggal)
 	if err != nil {
+		fmt.Printf("[LWP DATA ERROR] Parse date failed: %v\n", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Format tanggal salah (gunakan YYYY-MM-DD)"})
 		return
 	}
@@ -408,81 +412,143 @@ func GetPressingLWPData(c *gin.Context) {
 	bln := int(parsedDate.Month())
 	tgl := parsedDate.Day()
 
+	fmt.Printf("[LWP DATA] Parsed date - Tahun: %d, Bulan: %d, Tanggal: %d\n", thn, bln, tgl)
+
+	// CEK KONEKSI DATABASE
+	if database.MySQL == nil {
+		fmt.Printf("[LWP DATA ERROR] MySQL connection is nil\n")
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": "Database MySQL tidak terhubung",
+			"lwpRecords": []interface{}{},
+		})
+		return
+	}
+
 	type LWPRecord struct {
 		NoMC              string    `json:"noMesin"`
 		Tanggal           string    `json:"tanggal"`
 		Shift             string    `json:"shift"`
-		NPK               string    `json:"nik"`
-		ItemCode          string    `json:"kodePart"`
+		Nama              string    `json:"nik"`
+		MoldCode          string    `json:"kodePart"`
+		ItemCode          string    `json:"itemCode"`
 		ItemName          string    `json:"partName"`
+		MoldName          string    `json:"moldName"`
 		LotNo             string    `json:"noLot"`
 		JamMulai          string    `json:"jamMulai"`
 		JamSelesai        string    `json:"jamSelesai"`
 		OK                int       `json:"hasilOk"`
 		NG                int       `json:"ng"`
+		Total             int       `json:"total"`
+		// Sesuai dengan kolom di database
 		Bintik            int       `json:"bintik"`
+		TNgisi            int       `json:"tNgisi"`
+		Lengket           int       `json:"lengket"`
+		Deform            int       `json:"deform"`
+		Mentah            int       `json:"mentah"`
+		Retak             int       `json:"retak"`
+		Robek             int       `json:"robek"`
+		KBody             int       `json:"kBody"`
 		Kotor             int       `json:"kotor"`
-		Sompel            int       `json:"sompel"`
-		Belang            int       `json:"belang"`
-		Scratch           int       `json:"scratch"`
-		Tipis             int       `json:"tipis"`
-		Gelombang         int       `json:"gelombang"`
-		SilverMark        int       `json:"silverMark"`
-		FlowMark          int       `json:"flowMark"`
-		Gompal            int       `json:"gompal"`
-		Bending           int       `json:"bending"`
-		ShortShot         int       `json:"shortShot"`
-		Bushing           int       `json:"bushing"`
-		Nilon             int       `json:"nilon"`
-		Sink              int       `json:"sink"`
-		HitamPutih        int       `json:"hitamPutih"`
+		CCavity           int       `json:"cCavity"`
+		Karat             int       `json:"karat"`
+		CMetal            int       `json:"cMetal"`
+		Angin             int       `json:"angin"`
+		Runner            int       `json:"runner"`
+		Bonding           int       `json:"bonding"`
+		Dimensi           int       `json:"dimensi"`
+		Hardness          int       `json:"hardness"`
+		Bloming           int       `json:"bloming"`
+		SalahSlit         int       `json:"salahSlit"`
+		Champer           int       `json:"champer"`
+		MtlKelihatan      int       `json:"mtlKelihatan"`
+		Burry             int       `json:"burry"`
+		Miring            int       `json:"miring"`
+		Mampet            int       `json:"mampet"`
 		Lain2             int       `json:"lain2"`
+		Jam               int       `json:"jam"`
 	}
 
 	var records []LWPRecord
 
-	// Query ke database dengan JOIN ke v_stdlot untuk mendapatkan itemName
+	// Query DENGAN JOIN YANG BENAR ke v_stdlot
 	query := `
 		SELECT 
 			v.noMC,
 			CONCAT(v.thn, '-', LPAD(v.bln, 2, '0'), '-', LPAD(v.tgl, 2, '0')) as tanggal,
-			v.shift,
-			v.NPK,
-			v.itemcode,
-			COALESCE(s.itemName, '-') as itemName,
-			v.lotno,
-			TIME_FORMAT(v.MULAI, '%H:%i') as jamMulai,
-			TIME_FORMAT(v.SELESAI, '%H:%i') as jamSelesai,
-			v.OK,
-			v.NG,
-			COALESCE(v.bintik, 0) as bintik,
-			COALESCE(v.kotor, 0) as kotor,
-			COALESCE(v.sompel, 0) as sompel,
-			COALESCE(v.belang, 0) as belang,
-			COALESCE(v.scratch, 0) as scratch,
-			COALESCE(v.tipis, 0) as tipis,
-			COALESCE(v.gelombang, 0) as gelombang,
-			COALESCE(v.silvermark, 0) as silverMark,
-			COALESCE(v.flowmark, 0) as flowMark,
-			COALESCE(v.gompal, 0) as gompal,
-			COALESCE(v.bending, 0) as bending,
-			COALESCE(v.shortshoot, 0) as shortShot,
-			COALESCE(v.bushing, 0) as bushing,
-			COALESCE(v.nilon, 0) as nilon,
-			COALESCE(v.sink, 0) as sink,
-			COALESCE(v.hitamputih, 0) as hitamPutih,
-			COALESCE(v.lain2, 0) as lain2
+			COALESCE(v.shift, '') as shift,
+			COALESCE(v.nama, '') as nama,
+			v.moldcode,
+			COALESCE(s.itemCode, '-') as itemCode,
+			COALESCE(s.itemName, v.moldcode) as itemName,
+			COALESCE(s.moldName, '') as moldName,
+			v.lotNo,
+			COALESCE(TIME_FORMAT(v.MULAI, '%H:%i'), '00:00') as jamMulai,
+			COALESCE(TIME_FORMAT(v.SELESAI, '%H:%i'), '00:00') as jamSelesai,
+			COALESCE(v.OK, 0) as OK,
+			COALESCE(v.NG, 0) as NG,
+			COALESCE(v.Total, 0) as Total,
+			COALESCE(v.Bintik, 0) as bintik,
+			COALESCE(v.TNgisi, 0) as tNgisi,
+			COALESCE(v.Lengket, 0) as lengket,
+			COALESCE(v.Deform, 0) as deform,
+			COALESCE(v.Mentah, 0) as mentah,
+			COALESCE(v.Retak, 0) as retak,
+			COALESCE(v.Robek, 0) as robek,
+			COALESCE(v.KBody, 0) as kBody,
+			COALESCE(v.Kotor, 0) as kotor,
+			COALESCE(v.CCavity, 0) as cCavity,
+			COALESCE(v.Karat, 0) as karat,
+			COALESCE(v.CMetal, 0) as cMetal,
+			COALESCE(v.Angin, 0) as angin,
+			COALESCE(v.Runner, 0) as runner,
+			COALESCE(v.Bonding, 0) as bonding,
+			COALESCE(v.Dimensi, 0) as dimensi,
+			COALESCE(v.Hardness, 0) as hardness,
+			COALESCE(v.Bloming, 0) as bloming,
+			COALESCE(v.SalahSlit, 0) as salahSlit,
+			COALESCE(v.Champer, 0) as champer,
+			COALESCE(v.MtlKelihatan, 0) as mtlKelihatan,
+			COALESCE(v.Burry, 0) as burry,
+			COALESCE(v.Miring, 0) as miring,
+			COALESCE(v.Mampet, 0) as mampet,
+			COALESCE(v.lain2, 0) as lain2,
+			COALESCE(v.jam, 0) as jam
 		FROM vtrx_lwp_prs v
-		LEFT JOIN v_stdlot s ON v.itemcode = s.itemCode COLLATE utf8mb4_unicode_ci
-		WHERE v.NPK = ? 
+		LEFT JOIN v_stdlot s ON v.moldcode = s.moldCode
+		WHERE v.nama = ? 
 			AND v.thn = ? 
 			AND v.bln = ? 
 			AND v.tgl = ?
 		ORDER BY v.MULAI DESC
 	`
 
+	fmt.Printf("[LWP DATA] Executing query with params - Nama: %s, Thn: %d, Bln: %d, Tgl: %d\n", 
+		namaOperator, thn, bln, tgl)
+
 	if err := database.MySQL.Raw(query, namaOperator, thn, bln, tgl).Scan(&records).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data LWP: " + err.Error()})
+		fmt.Printf("[LWP DATA ERROR] Query failed: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Gagal mengambil data LWP: " + err.Error(),
+			"query_params": gin.H{
+				"nama": namaOperator,
+				"thn": thn,
+				"bln": bln,
+				"tgl": tgl,
+			},
+		})
+		return
+	}
+
+	fmt.Printf("[LWP DATA] Query successful - Records found: %d\n", len(records))
+
+	// Jika tidak ada data, return empty array
+	if len(records) == 0 {
+		fmt.Printf("[LWP DATA] No records found for Nama: %s on date: %d-%d-%d\n", namaOperator, thn, bln, tgl)
+		c.JSON(http.StatusOK, gin.H{
+			"lwpRecords": []interface{}{},
+			"total":      0,
+			"message":    "Tidak ada data LWP untuk hari ini",
+		})
 		return
 	}
 
@@ -494,6 +560,8 @@ func GetPressingLWPData(c *gin.Context) {
 		NIK       string                   `json:"nik"`
 		PartName  string                   `json:"partName"`
 		KodePart  string                   `json:"kodePart"`
+		ItemCode  string                   `json:"itemCode"`
+		MoldName  string                   `json:"moldName"`
 		Details   []map[string]interface{} `json:"details"`
 	}
 
@@ -507,9 +575,11 @@ func GetPressingLWPData(c *gin.Context) {
 				NoMesin:  record.NoMC,
 				Tanggal:  record.Tanggal,
 				Shift:    record.Shift,
-				NIK:      record.NPK,
+				NIK:      record.Nama,
 				PartName: record.ItemName,
-				KodePart: record.ItemCode,
+				KodePart: record.MoldCode,
+				ItemCode: record.ItemCode,
+				MoldName: record.MoldName,
 				Details:  []map[string]interface{}{},
 			}
 		}
@@ -517,23 +587,31 @@ func GetPressingLWPData(c *gin.Context) {
 		// Build klasifikasi reject array
 		klasifikasiReject := []map[string]interface{}{}
 		rejectTypes := map[string]int{
-			"Bintik":       record.Bintik,
-			"Kotor":        record.Kotor,
-			"Sompel":       record.Sompel,
-			"Belang":       record.Belang,
-			"Scratch":      record.Scratch,
-			"Tipis":        record.Tipis,
-			"Gelombang":    record.Gelombang,
-			"Silver Mark":  record.SilverMark,
-			"Flow Mark":    record.FlowMark,
-			"Gompal":       record.Gompal,
-			"Bending":      record.Bending,
-			"Short Shot":   record.ShortShot,
-			"Bushing":      record.Bushing,
-			"Nilon":        record.Nilon,
-			"Sink":         record.Sink,
-			"Hitam Putih":  record.HitamPutih,
-			"Lain-lain":    record.Lain2,
+			"Bintik":           record.Bintik,
+			"Tidak Ngisi":      record.TNgisi,
+			"Lengket":          record.Lengket,
+			"Deform":           record.Deform,
+			"Mentah":           record.Mentah,
+			"Retak":            record.Retak,
+			"Robek":            record.Robek,
+			"K-Body":           record.KBody,
+			"Kotor":            record.Kotor,
+			"C-Cavity":         record.CCavity,
+			"Karat":            record.Karat,
+			"C-Metal":          record.CMetal,
+			"Angin":            record.Angin,
+			"Runner":           record.Runner,
+			"Bonding":          record.Bonding,
+			"Dimensi":          record.Dimensi,
+			"Hardness":         record.Hardness,
+			"Bloming":          record.Bloming,
+			"Salah Slit":       record.SalahSlit,
+			"Champer":          record.Champer,
+			"Material Kelihatan": record.MtlKelihatan,
+			"Burry":            record.Burry,
+			"Miring":           record.Miring,
+			"Mampet":           record.Mampet,
+			"Lain-lain":        record.Lain2,
 		}
 
 		for jenis, qty := range rejectTypes {
@@ -551,6 +629,8 @@ func GetPressingLWPData(c *gin.Context) {
 			"jamSelesai":        record.JamSelesai,
 			"hasilOk":           record.OK,
 			"ng":                record.NG,
+			"total":             record.Total,
+			"jam":               record.Jam,
 			"klasifikasiReject": klasifikasiReject,
 		}
 
@@ -562,6 +642,8 @@ func GetPressingLWPData(c *gin.Context) {
 	for _, group := range machineMap {
 		result = append(result, *group)
 	}
+
+	fmt.Printf("[LWP DATA] Response prepared - Machine groups: %d\n", len(result))
 
 	c.JSON(http.StatusOK, gin.H{
 		"lwpRecords": result,
