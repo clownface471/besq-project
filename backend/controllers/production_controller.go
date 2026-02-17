@@ -381,3 +381,190 @@ func GetPressingWeeklyStats(c *gin.Context) {
 		},
 	})
 }
+
+// GetPressingLWPData - Ambil data LWP dari database untuk operator tertentu
+func GetPressingLWPData(c *gin.Context) {
+	namaOperator := c.Query("nik")
+	tanggal := c.Query("tanggal") // Format: YYYY-MM-DD
+	
+	if namaOperator == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Parameter 'nik' wajib diisi"})
+		return
+	}
+
+	// Jika tanggal kosong, gunakan hari ini
+	if tanggal == "" {
+		tanggal = time.Now().Format("2006-01-02")
+	}
+
+	// Parse tanggal untuk mendapatkan thn, bln, tgl
+	parsedDate, err := time.Parse("2006-01-02", tanggal)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format tanggal salah (gunakan YYYY-MM-DD)"})
+		return
+	}
+
+	thn := parsedDate.Year()
+	bln := int(parsedDate.Month())
+	tgl := parsedDate.Day()
+
+	type LWPRecord struct {
+		NoMC              string    `json:"noMesin"`
+		Tanggal           string    `json:"tanggal"`
+		Shift             string    `json:"shift"`
+		NPK               string    `json:"nik"`
+		ItemCode          string    `json:"kodePart"`
+		ItemName          string    `json:"partName"`
+		LotNo             string    `json:"noLot"`
+		JamMulai          string    `json:"jamMulai"`
+		JamSelesai        string    `json:"jamSelesai"`
+		OK                int       `json:"hasilOk"`
+		NG                int       `json:"ng"`
+		Bintik            int       `json:"bintik"`
+		Kotor             int       `json:"kotor"`
+		Sompel            int       `json:"sompel"`
+		Belang            int       `json:"belang"`
+		Scratch           int       `json:"scratch"`
+		Tipis             int       `json:"tipis"`
+		Gelombang         int       `json:"gelombang"`
+		SilverMark        int       `json:"silverMark"`
+		FlowMark          int       `json:"flowMark"`
+		Gompal            int       `json:"gompal"`
+		Bending           int       `json:"bending"`
+		ShortShot         int       `json:"shortShot"`
+		Bushing           int       `json:"bushing"`
+		Nilon             int       `json:"nilon"`
+		Sink              int       `json:"sink"`
+		HitamPutih        int       `json:"hitamPutih"`
+		Lain2             int       `json:"lain2"`
+	}
+
+	var records []LWPRecord
+
+	// Query ke database dengan JOIN ke v_stdlot untuk mendapatkan itemName
+	query := `
+		SELECT 
+			v.noMC,
+			CONCAT(v.thn, '-', LPAD(v.bln, 2, '0'), '-', LPAD(v.tgl, 2, '0')) as tanggal,
+			v.shift,
+			v.NPK,
+			v.itemcode,
+			COALESCE(s.itemName, '-') as itemName,
+			v.lotno,
+			TIME_FORMAT(v.MULAI, '%H:%i') as jamMulai,
+			TIME_FORMAT(v.SELESAI, '%H:%i') as jamSelesai,
+			v.OK,
+			v.NG,
+			COALESCE(v.bintik, 0) as bintik,
+			COALESCE(v.kotor, 0) as kotor,
+			COALESCE(v.sompel, 0) as sompel,
+			COALESCE(v.belang, 0) as belang,
+			COALESCE(v.scratch, 0) as scratch,
+			COALESCE(v.tipis, 0) as tipis,
+			COALESCE(v.gelombang, 0) as gelombang,
+			COALESCE(v.silvermark, 0) as silverMark,
+			COALESCE(v.flowmark, 0) as flowMark,
+			COALESCE(v.gompal, 0) as gompal,
+			COALESCE(v.bending, 0) as bending,
+			COALESCE(v.shortshoot, 0) as shortShot,
+			COALESCE(v.bushing, 0) as bushing,
+			COALESCE(v.nilon, 0) as nilon,
+			COALESCE(v.sink, 0) as sink,
+			COALESCE(v.hitamputih, 0) as hitamPutih,
+			COALESCE(v.lain2, 0) as lain2
+		FROM vtrx_lwp_prs v
+		LEFT JOIN v_stdlot s ON v.itemcode = s.itemCode COLLATE utf8mb4_unicode_ci
+		WHERE v.NPK = ? 
+			AND v.thn = ? 
+			AND v.bln = ? 
+			AND v.tgl = ?
+		ORDER BY v.MULAI DESC
+	`
+
+	if err := database.MySQL.Raw(query, namaOperator, thn, bln, tgl).Scan(&records).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data LWP: " + err.Error()})
+		return
+	}
+
+	// Group data berdasarkan mesin
+	type MachineGroup struct {
+		NoMesin   string                   `json:"noMesin"`
+		Tanggal   string                   `json:"tanggal"`
+		Shift     string                   `json:"shift"`
+		NIK       string                   `json:"nik"`
+		PartName  string                   `json:"partName"`
+		KodePart  string                   `json:"kodePart"`
+		Details   []map[string]interface{} `json:"details"`
+	}
+
+	machineMap := make(map[string]*MachineGroup)
+
+	for _, record := range records {
+		key := record.NoMC + "_" + record.Shift
+
+		if _, exists := machineMap[key]; !exists {
+			machineMap[key] = &MachineGroup{
+				NoMesin:  record.NoMC,
+				Tanggal:  record.Tanggal,
+				Shift:    record.Shift,
+				NIK:      record.NPK,
+				PartName: record.ItemName,
+				KodePart: record.ItemCode,
+				Details:  []map[string]interface{}{},
+			}
+		}
+
+		// Build klasifikasi reject array
+		klasifikasiReject := []map[string]interface{}{}
+		rejectTypes := map[string]int{
+			"Bintik":       record.Bintik,
+			"Kotor":        record.Kotor,
+			"Sompel":       record.Sompel,
+			"Belang":       record.Belang,
+			"Scratch":      record.Scratch,
+			"Tipis":        record.Tipis,
+			"Gelombang":    record.Gelombang,
+			"Silver Mark":  record.SilverMark,
+			"Flow Mark":    record.FlowMark,
+			"Gompal":       record.Gompal,
+			"Bending":      record.Bending,
+			"Short Shot":   record.ShortShot,
+			"Bushing":      record.Bushing,
+			"Nilon":        record.Nilon,
+			"Sink":         record.Sink,
+			"Hitam Putih":  record.HitamPutih,
+			"Lain-lain":    record.Lain2,
+		}
+
+		for jenis, qty := range rejectTypes {
+			if qty > 0 {
+				klasifikasiReject = append(klasifikasiReject, map[string]interface{}{
+					"jenis": jenis,
+					"qty":   qty,
+				})
+			}
+		}
+
+		detail := map[string]interface{}{
+			"noLot":             record.LotNo,
+			"jamMulai":          record.JamMulai,
+			"jamSelesai":        record.JamSelesai,
+			"hasilOk":           record.OK,
+			"ng":                record.NG,
+			"klasifikasiReject": klasifikasiReject,
+		}
+
+		machineMap[key].Details = append(machineMap[key].Details, detail)
+	}
+
+	// Convert map to array
+	result := []MachineGroup{}
+	for _, group := range machineMap {
+		result = append(result, *group)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"lwpRecords": result,
+		"total":      len(result),
+	})
+}

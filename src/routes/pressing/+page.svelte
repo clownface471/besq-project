@@ -151,7 +151,7 @@
   }
 
   // Load today's pressing data from API
-  async function loadData() {
+async function loadData() {
     isLoading = true;
     errorMessage = "";
 
@@ -162,43 +162,56 @@
         return;
       }
 
-      const response = await fetch(`${API_URL}/api/pressing/today`, {
+      // Ambil NIK operator dari data employee
+      const operatorNIK = employee.nik;
+      const today = new Date().toISOString().split('T')[0]; // Format YYYY-MM-DD
+
+      // FETCH DATA LWP DARI DATABASE
+      const lwpResponse = await fetch(`${API_URL}/api/pressing/lwp-data?nik=${encodeURIComponent(operatorNIK)}&tanggal=${today}`, {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
       });
 
-      if (!response.ok) {
-        throw new Error("Gagal memuat data pressing");
+      if (!lwpResponse.ok) {
+        throw new Error("Gagal memuat data LWP");
       }
 
-      const data = await response.json();
+      const lwpData = await lwpResponse.json();
       
-      // Update state dengan data dari backend
-      if (data.stats) monthlyData = data.stats;
-      
-      // Jika API mengembalikan LWP, update lwpRecords
-      if (data.lwpRecords) {
-        lwpRecords = data.lwpRecords.map((cycle: any) => ({
-             noMesin: cycle.no_mc,
-             tanggal: cycle.CreatedAt,
-             shift: "I",
-             nik: cycle.nama_operator,
-             partName: cycle.item,
-             kodePart: "-",
-             details: [{
-                 noLot: cycle.no_lot,
-                 jamMulai: new Date(cycle.CreatedAt).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}),
-                 jamSelesai: "-",
-                 hasilOk: 1,
-                 ng: 0,
-                 klasifikasiReject: []
-             }]
-        }));
+      // Update lwpRecords dengan data dari database
+      if (lwpData.lwpRecords && Array.isArray(lwpData.lwpRecords)) {
+        lwpRecords = lwpData.lwpRecords;
+      } else {
+        lwpRecords = [];
       }
       
-      // update machineStatuses setiap kali data LWP/records berubah
+      // Update machineStatuses dari lwpRecords
       updateMachineStatuses();
+
+      // Hitung statistik dari data real
+      if (lwpRecords.length > 0) {
+        let totalCompleted = 0;
+        let totalNG = 0;
+
+        lwpRecords.forEach((machine: any) => {
+          if (machine.details && Array.isArray(machine.details)) {
+            machine.details.forEach((detail: any) => {
+              totalCompleted += detail.hasilOk || 0;
+              totalNG += detail.ng || 0;
+            });
+          }
+        });
+
+        // Update monthlyData dengan data real
+        monthlyData = {
+          ...monthlyData,
+          todayCompleted: totalCompleted,
+          efficiency: monthlyData.todayTarget > 0 
+            ? Math.round((totalCompleted / monthlyData.todayTarget) * 100) 
+            : 0
+        };
+      }
 
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan";
@@ -206,6 +219,30 @@
     } finally {
       isLoading = false;
     }
+  }
+
+  function getRejectColor(classify: string) {
+    const colorMap: Record<string, string> = {
+      "Bintik": "bg-red-50 text-red-700 border-red-200",
+      "Kotor": "bg-yellow-50 text-yellow-700 border-yellow-200",
+      "Sompel": "bg-orange-50 text-orange-700 border-orange-200",
+      "Belang": "bg-pink-50 text-pink-700 border-pink-200",
+      "Scratch": "bg-purple-50 text-purple-700 border-purple-200",
+      "Tipis": "bg-indigo-50 text-indigo-700 border-indigo-200",
+      "Gelombang": "bg-blue-50 text-blue-700 border-blue-200",
+      "Silver Mark": "bg-cyan-50 text-cyan-700 border-cyan-200",
+      "Flow Mark": "bg-teal-50 text-teal-700 border-teal-200",
+      "Gompal": "bg-lime-50 text-lime-700 border-lime-200",
+      "Bending": "bg-emerald-50 text-emerald-700 border-emerald-200",
+      "Short Shot": "bg-rose-50 text-rose-700 border-rose-200",
+      "Bushing": "bg-amber-50 text-amber-700 border-amber-200",
+      "Nilon": "bg-violet-50 text-violet-700 border-violet-200",
+      "Sink": "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200",
+      "Hitam Putih": "bg-slate-50 text-slate-700 border-slate-200",
+      "Lain-lain": "bg-gray-50 text-gray-700 border-gray-200"
+    };
+    
+    return colorMap[classify] || "bg-slate-50 text-slate-700 border-slate-200";
   }
 
   // Fungsi Scan Mesin (Navigasi)
