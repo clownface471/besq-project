@@ -624,7 +624,7 @@ for _, r := range rejectTypes {
 detail := map[string]interface{}{
     "noLot":             record.LotNo,
     "jamMulai":          record.JamMulai,
-    "jamSelesai":        record.JamSelesai,
+    "jamSelesai":        record.JamSelesai,	
     "hasilOk":           record.OK,
     "ng":                record.NG,
     "total":             record.Total,
