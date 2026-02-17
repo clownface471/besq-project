@@ -326,13 +326,6 @@ async function loadData() {
     return "bg-rose-500 from-rose-500 to-rose-400";
   }
 
-  function getRejectColor(classify: string) {
-    if (classify === "Cacat Permukaan") return "bg-red-50 text-red-700 border-red-200";
-    if (classify === "Dimensi") return "bg-yellow-50 text-yellow-700 border-yellow-200";
-    if (classify === "Goresan") return "bg-orange-50 text-orange-700 border-orange-200";
-    return "bg-slate-50 text-slate-700 border-slate-200";
-  }
-
   // Load data on mount
   onMount(() => {
     loadData();
