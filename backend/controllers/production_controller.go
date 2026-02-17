@@ -386,7 +386,7 @@ func GetPressingWeeklyStats(c *gin.Context) {
 // GetPressingLWPData - Ambil data LWP dari database untuk operator tertentu
 func GetPressingLWPData(c *gin.Context) {
 	namaOperator := c.Query("nik")
-	tanggal := c.Query("tanggal") // Format: YYYY-MM-DD
+	tanggal := c.Query("tanggal")
 	
 	fmt.Printf("[LWP DATA] Request received - NIK: %s, Tanggal: %s\n", namaOperator, tanggal)
 	
@@ -395,12 +395,10 @@ func GetPressingLWPData(c *gin.Context) {
 		return
 	}
 
-	// Jika tanggal kosong, gunakan hari ini
 	if tanggal == "" {
 		tanggal = time.Now().Format("2006-01-02")
 	}
 
-	// Parse tanggal untuk mendapatkan thn, bln, tgl
 	parsedDate, err := time.Parse("2006-01-02", tanggal)
 	if err != nil {
 		fmt.Printf("[LWP DATA ERROR] Parse date failed: %v\n", err)
@@ -414,7 +412,6 @@ func GetPressingLWPData(c *gin.Context) {
 
 	fmt.Printf("[LWP DATA] Parsed date - Tahun: %d, Bulan: %d, Tanggal: %d\n", thn, bln, tgl)
 
-	// CEK KONEKSI DATABASE
 	if database.MySQL == nil {
 		fmt.Printf("[LWP DATA ERROR] MySQL connection is nil\n")
 		c.JSON(http.StatusServiceUnavailable, gin.H{
@@ -439,7 +436,6 @@ func GetPressingLWPData(c *gin.Context) {
 		OK                int       `json:"hasilOk"`
 		NG                int       `json:"ng"`
 		Total             int       `json:"total"`
-		// Sesuai dengan kolom di database
 		Bintik            int       `json:"bintik"`
 		TNgisi            int       `json:"tNgisi"`
 		Lengket           int       `json:"lengket"`
@@ -470,7 +466,6 @@ func GetPressingLWPData(c *gin.Context) {
 
 	var records []LWPRecord
 
-	// Query DENGAN JOIN YANG BENAR ke v_stdlot
 	query := `
 		SELECT 
 			v.noMC,
@@ -541,7 +536,6 @@ func GetPressingLWPData(c *gin.Context) {
 
 	fmt.Printf("[LWP DATA] Query successful - Records found: %d\n", len(records))
 
-	// Jika tidak ada data, return empty array
 	if len(records) == 0 {
 		fmt.Printf("[LWP DATA] No records found for Nama: %s on date: %d-%d-%d\n", namaOperator, thn, bln, tgl)
 		c.JSON(http.StatusOK, gin.H{
@@ -584,55 +578,59 @@ func GetPressingLWPData(c *gin.Context) {
 			}
 		}
 
-		// Build klasifikasi reject array
-		klasifikasiReject := []map[string]interface{}{}
-		rejectTypes := map[string]int{
-			"Bintik":           record.Bintik,
-			"Tidak Ngisi":      record.TNgisi,
-			"Lengket":          record.Lengket,
-			"Deform":           record.Deform,
-			"Mentah":           record.Mentah,
-			"Retak":            record.Retak,
-			"Robek":            record.Robek,
-			"K-Body":           record.KBody,
-			"Kotor":            record.Kotor,
-			"C-Cavity":         record.CCavity,
-			"Karat":            record.Karat,
-			"C-Metal":          record.CMetal,
-			"Angin":            record.Angin,
-			"Runner":           record.Runner,
-			"Bonding":          record.Bonding,
-			"Dimensi":          record.Dimensi,
-			"Hardness":         record.Hardness,
-			"Bloming":          record.Bloming,
-			"Salah Slit":       record.SalahSlit,
-			"Champer":          record.Champer,
-			"Material Kelihatan": record.MtlKelihatan,
-			"Burry":            record.Burry,
-			"Miring":           record.Miring,
-			"Mampet":           record.Mampet,
-			"Lain-lain":        record.Lain2,
-		}
+// Build klasifikasi reject - hanya jenis dan qty yang ada saja
+klasifikasiReject := []map[string]interface{}{}
 
-		for jenis, qty := range rejectTypes {
-			if qty > 0 {
-				klasifikasiReject = append(klasifikasiReject, map[string]interface{}{
-					"jenis": jenis,
-					"qty":   qty,
-				})
-			}
-		}
+rejectTypes := []struct {
+    Nama string
+    Qty  int
+}{
+    {"Bintik", record.Bintik},
+    {"Tidak Ngisi", record.TNgisi},
+    {"Lengket", record.Lengket},
+    {"Deform", record.Deform},
+    {"Mentah", record.Mentah},
+    {"Retak", record.Retak},
+    {"Robek", record.Robek},
+    {"K-Body", record.KBody},
+    {"Kotor", record.Kotor},
+    {"C-Cavity", record.CCavity},
+    {"Karat", record.Karat},
+    {"C-Metal", record.CMetal},
+    {"Angin", record.Angin},
+    {"Runner", record.Runner},
+    {"Bonding", record.Bonding},
+    {"Dimensi", record.Dimensi},
+    {"Hardness", record.Hardness},
+    {"Bloming", record.Bloming},
+    {"Salah Slit", record.SalahSlit},
+    {"Champer", record.Champer},
+    {"Material Kelihatan", record.MtlKelihatan},
+    {"Burry", record.Burry},
+    {"Miring", record.Miring},
+    {"Mampet", record.Mampet},
+    {"Lain-lain", record.Lain2},
+}
 
-		detail := map[string]interface{}{
-			"noLot":             record.LotNo,
-			"jamMulai":          record.JamMulai,
-			"jamSelesai":        record.JamSelesai,
-			"hasilOk":           record.OK,
-			"ng":                record.NG,
-			"total":             record.Total,
-			"jam":               record.Jam,
-			"klasifikasiReject": klasifikasiReject,
-		}
+for _, r := range rejectTypes {
+    if r.Qty > 0 {
+        klasifikasiReject = append(klasifikasiReject, map[string]interface{}{
+            "jenis": r.Nama,
+            "qty":   r.Qty,
+        })
+    }
+}
+
+detail := map[string]interface{}{
+    "noLot":             record.LotNo,
+    "jamMulai":          record.JamMulai,
+    "jamSelesai":        record.JamSelesai,
+    "hasilOk":           record.OK,
+    "ng":                record.NG,
+    "total":             record.Total,
+    "jam":               record.Jam,
+    "klasifikasiReject": klasifikasiReject,
+}
 
 		machineMap[key].Details = append(machineMap[key].Details, detail)
 	}
