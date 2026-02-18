@@ -81,7 +81,6 @@ admin := r.Group("/admin")
 		api.GET("/pressing/today", controllers.GetPressingDashboard)
 		api.POST("/scan-machine", controllers.ScanMachine)
 		api.POST("/lwp", controllers.CreateLWP)
-		api.GET("/chart/machine", controllers.GetChartDataByMachine)
 	}
 
 	// -----------------------------------------------------------
@@ -104,6 +103,7 @@ admin := r.Group("/admin")
         // Level 3: Klik Mesin -> Lihat Detail Per Jam
         // Usage: GET /api/chart/machine?tanggal=2026-02-01&no_mc=04A
         chartApi.GET("/machine", controllers.GetMachineDetail)
+		chartApi.GET("/machine", controllers.GetChartDataByMachine)
     }
 
 	r.Run(":8080")
