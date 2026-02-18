@@ -35,7 +35,7 @@ func GetManagerOverview(c *gin.Context) {
 			COALESCE(SUM(t.Total), 0) AS actual,
 			COALESCE(SUM(t.NG), 0) AS actual_ng
 		FROM vtrx_lwp_prs t
-		LEFT JOIN v_stdlot s ON t.moldcode = s.moldCode COLLATE utf8mb4_unicode_ci
+		LEFT JOIN v_stdlot s ON t.itemCode = s.itemCode COLLATE utf8mb4_unicode_ci
 		WHERE t.tanggal = ?
 		GROUP BY t.proses
 	`
@@ -65,7 +65,7 @@ func GetLeaderProcessView(c *gin.Context) {
 			COALESCE(SUM(t.Total), 0) AS actual,
 			COALESCE(SUM(t.NG), 0) AS actual_ng
 		FROM vtrx_lwp_prs t
-		LEFT JOIN v_stdlot s ON t.moldcode = s.moldCode COLLATE utf8mb4_unicode_ci
+		LEFT JOIN v_stdlot s ON t.itemCode = s.itemCode COLLATE utf8mb4_unicode_ci
 		WHERE t.tanggal = ? AND t.proses = ?
 		GROUP BY t.noMC
 		ORDER BY t.noMC
@@ -128,7 +128,7 @@ func GetMachineDetail(c *gin.Context) {
 
             t.Total, t.OK, t.NG
         FROM vtrx_lwp_prs t
-        LEFT JOIN v_stdlot s ON t.moldcode = s.moldCode COLLATE utf8mb4_unicode_ci
+        LEFT JOIN v_stdlot s ON t.itemCode = s.itemCode COLLATE utf8mb4_unicode_ci
         CROSS JOIN jam_master j
         WHERE 
             t.tanggal = ? 
