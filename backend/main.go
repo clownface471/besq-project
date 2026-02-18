@@ -81,6 +81,7 @@ admin := r.Group("/admin")
 		api.GET("/pressing/today", controllers.GetPressingDashboard)
 		api.POST("/scan-machine", controllers.ScanMachine)
 		api.POST("/lwp", controllers.CreateLWP)
+		api.GET("/chart/machine", controllers.GetChartDataByMachine)
 	}
 
 	// -----------------------------------------------------------
