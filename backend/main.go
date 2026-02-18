@@ -100,9 +100,13 @@ admin := r.Group("/admin")
         // Usage: GET /api/chart/process?tanggal=2026-02-01&proses=PRS
         chartApi.GET("/process", controllers.GetLeaderProcessView)
 
-        // Level 3: Klik Mesin -> Lihat Detail Per Jam
-        // Usage: GET /api/chart/machine?tanggal=2026-02-01&no_mc=04A
-        chartApi.GET("/machine", controllers.GetMachineDetail)
+    // Level 3a: Klik Mesin -> Lihat Summary/Overview Mesin
+    // Usage: GET /api/chart/machine?tanggal=2026-02-01&no_mc=04A
+    chartApi.GET("/machine", controllers.GetMachineDetail)
+    
+    // Level 3b: Detail Per Jam dengan Item Info untuk Chart & Tabel
+    // Usage: GET /api/chart/machine/hourly?tanggal=2026-02-01&no_mc=04A&shift=1
+    chartApi.GET("/machine/hourly", controllers.GetChartDataByMachine)
     }
 
 	r.Run(":8080")

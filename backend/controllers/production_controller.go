@@ -6,6 +6,7 @@ import (
 	"factory-api/database"
 	"factory-api/models"
 	"time"
+	"fmt"
 )
 
 // GET: Melihat status mesin Cutting
@@ -273,4 +274,110 @@ func CreateLWP(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "LWP Created", "data": cycle})
+}
+
+// GetChartDataByMachine - Get hourly production data for specific machine with item info
+func GetChartDataByMachine(c *gin.Context) {
+	tanggal := c.Query("tanggal")
+	noMC := c.Query("no_mc")
+	shift := c.Query("shift") // "1", "2", or "3"
+
+	if tanggal == "" || noMC == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Parameter tanggal dan no_mc wajib diisi"})
+		return
+	}
+
+	// Default shift to "1" if not provided
+	if shift == "" {
+		shift = "1"
+	}
+
+	// Parse tanggal
+	parsedDate, err := time.Parse("2006-01-02", tanggal)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Format tanggal salah (gunakan YYYY-MM-DD)"})
+		return
+	}
+
+	thn := parsedDate.Year()
+	bln := int(parsedDate.Month())
+	tgl := parsedDate.Day()
+
+	type ChartRecord struct {
+		Label     string  `json:"label"`
+		Target    float64 `json:"target"`
+		Actual    int     `json:"actual"`
+		ActualNG  int     `json:"actual_ng"`
+		ItemCode  string  `json:"itemCode"`
+		ItemName  string  `json:"itemName"`
+		MoldCode  string  `json:"moldCode"`
+	}
+
+	var records []ChartRecord
+
+	// Determine hour range based on shift
+	var hourStart, hourEnd int
+	switch shift {
+	case "1":
+		hourStart, hourEnd = 0, 7
+	case "2":
+		hourStart, hourEnd = 8, 15
+	case "3":
+		hourStart, hourEnd = 16, 23
+	default:
+		hourStart, hourEnd = 0, 23
+	}
+
+	// Query dengan JOIN ke v_stdlot untuk mendapatkan itemName
+	query := `
+		SELECT 
+			CONCAT(LPAD(jam, 2, '0'), ':00') as label,
+			COALESCE(AVG(target), 0) as target,
+			COALESCE(SUM(OK), 0) as actual,
+			COALESCE(SUM(NG), 0) as actual_ng,
+			COALESCE(s.itemCode, '-') as itemCode,
+			COALESCE(s.itemName, v.moldcode) as itemName,
+			v.moldcode as moldCode
+		FROM vtrx_lwp_prs v
+		LEFT JOIN v_stdlot s ON v.moldcode = s.moldCode
+		WHERE v.noMC = ? 
+			AND v.thn = ? 
+			AND v.bln = ? 
+			AND v.tgl = ?
+			AND v.shift = ?
+			AND v.jam BETWEEN ? AND ?
+		GROUP BY v.jam, v.moldcode, s.itemCode, s.itemName
+		ORDER BY v.jam
+	`
+
+	if err := database.MySQL.Raw(query, noMC, thn, bln, tgl, shift, hourStart, hourEnd).Scan(&records).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data chart: " + err.Error()})
+		return
+	}
+
+	// Fill in missing hours with zero values
+	hourMap := make(map[string]ChartRecord)
+	for _, rec := range records {
+		hourMap[rec.Label] = rec
+	}
+
+	result := []ChartRecord{}
+	for h := hourStart; h <= hourEnd; h++ {
+		hourLabel := fmt.Sprintf("%02d:00", h)
+		if rec, exists := hourMap[hourLabel]; exists {
+			result = append(result, rec)
+		} else {
+			result = append(result, ChartRecord{
+				Label:    hourLabel,
+				Target:   30, // Default target
+				Actual:   0,
+				ActualNG: 0,
+				ItemCode: "-",
+				ItemName: "-",
+				MoldCode: "-",
+			})
+		}
+	}
+
+	c.JSON(http.StatusOK, result)
 }

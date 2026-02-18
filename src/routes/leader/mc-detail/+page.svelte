@@ -5,21 +5,29 @@
   import annotationPlugin from 'chartjs-plugin-annotation';
   import { auth } from '$lib/stores/auth';
 
-  // Registrasi plugin
   Chart.register(annotationPlugin);
 
-  // Ambil ID & Tanggal dari URL
+  // Type definition
+  interface ChartDataRow {
+    label: string;
+    target: number;
+    actual: number;
+    actual_ng: number;
+    itemCode: string;
+    itemName: string;
+    moldCode: string;
+  }
+
   let urlMachineId = $page.url.searchParams.get('no_mc') || $page.url.searchParams.get('id') || '11A';
   let urlDate = $page.url.searchParams.get('date') || new Date().toISOString().split('T')[0];
 
-  // State Filter - shift default ke "1"
   let filters = {
     tanggal: urlDate,
     mesin: urlMachineId,
     shift: '1'
   };
 
-  let chartData: any[] = [];
+  let chartData: ChartDataRow[] = [];
   let isLoading = false;
   let canvasTotal: HTMLCanvasElement;
   let canvasNG: HTMLCanvasElement;
@@ -334,60 +342,67 @@
     </div>
 
     <!-- Data Table -->
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-        <div class="p-4 bg-slate-50 border-b border-slate-100 font-bold text-slate-700 flex items-center justify-between">
-            <span>Tabel Data Detail</span>
-            {#if chartData.length > 0}
-                <span class="text-xs font-normal text-slate-500">
-                    Total: {chartData.reduce((sum, row) => sum + (row.actual || 0), 0)} unit | 
-                    NG: {chartData.reduce((sum, row) => sum + (row.actual_ng || 0), 0)} unit
-                </span>
-            {/if}
-        </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left">
-                <thead class="bg-slate-100 text-slate-600 font-bold text-xs uppercase">
-                    <tr>
-                        <th class="px-6 py-3">Jam</th>
-                        <th class="px-6 py-3 text-right">Target</th>
-                        <th class="px-6 py-3 text-right">Nilai Total</th>
-                        <th class="px-6 py-3 text-right">Nilai NG</th>
-                        <th class="px-6 py-3 text-right">Achievement</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-slate-100">
-                    {#each chartData as row}
-                        {@const achievement = row.target > 0 ? ((row.actual / row.target) * 100).toFixed(1) : 0}
-                        <tr class="hover:bg-slate-50 transition-colors">
-                            <td class="px-6 py-3 font-mono font-bold text-indigo-600">{row.label}</td>
-                            <td class="px-6 py-3 text-right font-medium text-slate-600">{Math.round(row.target || 0)}</td>
-                            <td class="px-6 py-3 text-right font-bold text-slate-800">{row.actual}</td>
-                            <td class="px-6 py-3 text-right font-bold text-rose-600">{row.actual_ng}</td>
-                            <td class="px-6 py-3 text-right">
-                                <span class="inline-flex items-center px-2 py-1 rounded-md text-xs font-bold {
-                                    parseFloat(achievement as string) >= 100 ? 'bg-emerald-100 text-emerald-700' :
-                                    parseFloat(achievement as string) >= 80 ? 'bg-amber-100 text-amber-700' :
-                                    'bg-rose-100 text-rose-700'
-                                }">
-                                    {achievement}%
-                                </span>
-                            </td>
-                        </tr>
-                    {/each}
-                    {#if chartData.length === 0 && !isLoading}
-                        <tr><td colspan="5" class="px-6 py-8 text-center text-slate-400">Tidak ada data untuk shift dan tanggal yang dipilih.</td></tr>
-                    {/if}
-                    {#if isLoading}
-                        <tr><td colspan="5" class="px-6 py-8 text-center text-slate-400">
-                            <svg class="animate-spin h-6 w-6 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Memuat data...
-                        </td></tr>
-                    {/if}
-                </tbody>
-            </table>
-        </div>
+<div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+    <div class="p-4 bg-slate-50 border-b border-slate-100 font-bold text-slate-700 flex items-center justify-between">
+        <span>Tabel Data Detail</span>
+        {#if chartData.length > 0}
+            <span class="text-xs font-normal text-slate-500">
+                Total: {chartData.reduce((sum, row) => sum + (row.actual || 0), 0)} unit | 
+                NG: {chartData.reduce((sum, row) => sum + (row.actual_ng || 0), 0)} unit
+            </span>
+        {/if}
     </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+            <thead class="bg-slate-100 text-slate-600 font-bold text-xs uppercase">
+                <tr>
+                    <th class="px-6 py-3">Jam</th>
+                    <th class="px-6 py-3">Item Name</th>
+                    <th class="px-6 py-3 text-right">Target</th>
+                    <th class="px-6 py-3 text-right">Nilai Total</th>
+                    <th class="px-6 py-3 text-right">Nilai NG</th>
+                    <th class="px-6 py-3 text-right">Achievement</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {#each chartData as row}
+                    {@const achievement = row.target > 0 ? ((row.actual / row.target) * 100).toFixed(1) : 0}
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        <td class="px-6 py-3 font-mono font-bold text-indigo-600">{row.label}</td>
+                        <td class="px-6 py-3">
+                            <div class="flex flex-col">
+                                <span class="font-semibold text-slate-800">{row.itemName || '-'}</span>
+                                <span class="text-xs text-slate-500">{row.itemCode || '-'}</span>
+                            </div>
+                        </td>
+                        <td class="px-6 py-3 text-right font-medium text-slate-600">{Math.round(row.target || 0)}</td>
+                        <td class="px-6 py-3 text-right font-bold text-slate-800">{row.actual}</td>
+                        <td class="px-6 py-3 text-right font-bold text-rose-600">{row.actual_ng}</td>
+                        <td class="px-6 py-3 text-right">
+                            <span class="inline-flex items-center px-2 py-1 rounded-md text-xs font-bold {
+                                parseFloat(achievement as string) >= 100 ? 'bg-emerald-100 text-emerald-700' :
+                                parseFloat(achievement as string) >= 80 ? 'bg-amber-100 text-amber-700' :
+                                'bg-rose-100 text-rose-700'
+                            }">
+                                {achievement}%
+                            </span>
+                        </td>
+                    </tr>
+                {/each}
+                {#if chartData.length === 0 && !isLoading}
+                    <tr><td colspan="6" class="px-6 py-8 text-center text-slate-400">Tidak ada data untuk shift dan tanggal yang dipilih.</td></tr>
+                {/if}
+                {#if isLoading}
+                    <tr><td colspan="6" class="px-6 py-8 text-center text-slate-400">
+                        <svg class="animate-spin h-6 w-6 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Memuat data...
+                    </td></tr>
+                {/if}
+            </tbody>
+        </table>
+    </div>
+</div>
 </div>
