@@ -41,11 +41,11 @@
     '3': 'Shift 3 (16:00 - 00:00)'
   };
 
-  async function loadChartData() {
+async function loadChartData() {
     isLoading = true;
     try {
-      // IMPORTANT: Include shift parameter in API call
-      const res = await fetch(`/api/chart/machine?tanggal=${filters.tanggal}&no_mc=${filters.mesin}&shift=${filters.shift}`, {
+      // GUNAKAN endpoint /machine/hourly untuk data per jam
+      const res = await fetch(`/api/chart/machine/hourly?tanggal=${filters.tanggal}&no_mc=${filters.mesin}&shift=${filters.shift}`, {
           headers: { Authorization: `Bearer ${$auth.token}` }
       });
 
