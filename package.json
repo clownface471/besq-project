@@ -17,7 +17,6 @@
     "@sveltejs/vite-plugin-svelte": "^6.2.1",
     "@tailwindcss/vite": "^4.1.17",
     "@types/chart.js": "^2.9.41",
-    "@types/html2canvas": "^0.5.35",
     "autoprefixer": "^10.4.23",
     "postcss": "^8.5.6",
     "svelte": "^5.45.6",
@@ -31,7 +30,7 @@
     "chart.js": "^4.5.1",
     "chartjs-plugin-annotation": "^3.1.0",
     "cookie": "^1.1.1",
-    "html2canvas": "^1.4.1",
+    "html-to-image": "^1.11.13",
     "svelte-dnd-action": "^0.9.69",
     "svelte-fa": "^4.0.4",
     "sweetalert2": "^11.26.17"

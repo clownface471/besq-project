@@ -4,7 +4,9 @@
   import Chart from 'chart.js/auto';
   import annotationPlugin from 'chartjs-plugin-annotation';
   import { auth } from '$lib/stores/auth';
-  import html2canvas from 'html2canvas';
+  
+  // Import baru menggunakan html-to-image yang lebih tangguh dengan CSS modern
+  import { toPng } from 'html-to-image';
 
   // Registrasi plugin
   Chart.register(annotationPlugin);
@@ -41,7 +43,6 @@
   async function loadChartData() {
     isLoading = true;
     try {
-      // IMPORTANT: Include shift parameter in API call
       const res = await fetch(`/api/chart/machine?tanggal=${filters.tanggal}&no_mc=${filters.mesin}&shift=${filters.shift}`, {
           headers: { Authorization: `Bearer ${$auth.token}` }
       });
@@ -65,16 +66,13 @@
   }
 
   function renderCharts() {
-    // Mapping Data
     const labels = chartData.map(d => d.label);
     const totalVals = chartData.map(d => d.actual);
     const ngVals = chartData.map(d => d.actual_ng);
     
-    // Ambil target dari data pertama (jika ada) atau default 30
     const targetTotal = chartData.length > 0 ? (chartData[0].target || 30) : 30;
-    const targetNG = Math.ceil(targetTotal * 0.05); // Target NG = 5% dari target total
+    const targetNG = Math.ceil(targetTotal * 0.05);
 
-    // Destroy existing charts
     if (chartTotal) chartTotal.destroy();
     if (chartNG) chartNG.destroy();
 
@@ -108,6 +106,7 @@
               ]
           },
           options: {
+              animation: false, // Penting agar render gambar instan
               responsive: true,
               maintainAspectRatio: false,
               plugins: {
@@ -206,6 +205,7 @@
               ]
           },
           options: {
+              animation: false, // Penting agar render gambar instan
               responsive: true,
               maintainAspectRatio: false,
               plugins: {
@@ -278,18 +278,18 @@
       isExporting = true;
       
       try {
-          // Pakai "as any" biar TypeScript nggak bawel soal properti scale
-          const canvas = await html2canvas(exportContainer, { 
-              scale: 2, 
-              useCORS: true,
-              backgroundColor: '#f8fafc' 
-          } as any);
+          const dataUrl = await toPng(exportContainer, { 
+              pixelRatio: 2, 
+              backgroundColor: '#f8fafc',
+              style: {
+                  transform: 'scale(1)',
+                  transformOrigin: 'top left'
+              }
+          });
           
-          const image = canvas.toDataURL('image/png');
           const link = document.createElement('a');
-          
           link.download = `Laporan_Produksi_Mesin_${filters.mesin}_Shift${filters.shift}_${filters.tanggal}.png`;
-          link.href = image;
+          link.href = dataUrl;
           link.click();
       } catch (error) {
           console.error("Gagal mengekspor gambar:", error);
