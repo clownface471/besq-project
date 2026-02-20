@@ -12,7 +12,6 @@
     let isLoading = true; 
     let charts: Record<string, any> = {};
 
-    // 1. TAMBAHAN: State untuk tanggal
     let selectedDate = new Date().toISOString().split('T')[0];
 
     function goBack() {
@@ -40,10 +39,22 @@
         };
     }
 
+    // FUNGSI BARU: Membersihkan semua chart secara radikal
+    function destroyAllCharts() {
+        Object.keys(charts).forEach(machineId => {
+            if (charts[machineId]?.total) charts[machineId].total.destroy();
+            if (charts[machineId]?.notGood) charts[machineId].notGood.destroy();
+        });
+        charts = {};
+    }
+
     async function fetchMachineStatus() {
         isLoading = true;
+        
+        // 1. Bersihkan chart LAMA sebelum fetch data BARU
+        destroyAllCharts();
+        
         try {
-            // 3. UPDATE: Gunakan 'selectedDate' dinamis
             const res = await fetch(`/api/chart/process?tanggal=${selectedDate}&proses=PRS`, {
                 headers: { Authorization: `Bearer ${$auth.token}` }
             });
@@ -51,49 +62,47 @@
             if (res.ok) {
                 const data = await res.json();
                 
-                machineData = data.map((item: any) => {
-                    const target = Math.round(item.target || 0);
-                    const actual = Math.round(item.actual || 0);
-                    const ng = Math.round(item.actual_ng || 0); 
+                // Pastikan data valid
+                if (!data || data.length === 0) {
+                    machineData = [];
+                } else {
+                    machineData = data.map((item: any) => {
+                        const target = Math.round(item.target || 0);
+                        const actual = Math.round(item.actual || 0);
+                        const ng = Math.round(item.actual_ng || 0); 
 
-                    const achievement = target > 0 ? (actual / target) * 100 : 0;
-                    const ngRate = (actual + ng) > 0 ? (ng / (actual + ng)) * 100 : 0;
+                        const achievement = target > 0 ? (actual / target) * 100 : 0;
+                        const ngRate = (actual + ng) > 0 ? (ng / (actual + ng)) * 100 : 0;
 
-                    return {
-                        id: item.label,
-                        name: `Mesin Press ${item.label}`,
-                        target: target,
-                        completed: actual,
-                        notGood: ng,
-                        isProblem: achievement < 80 || ngRate > 5 
-                    };
-                });
+                        return {
+                            id: item.label,
+                            name: `Mesin Press ${item.label}`,
+                            target: target,
+                            completed: actual,
+                            notGood: ng,
+                            isProblem: achievement < 80 || ngRate > 5 
+                        };
+                    });
+                }
             } else {
-                machineData = []; // Reset jika gagal load
+                machineData = [];
             }
         } catch (e) {
             console.error("Gagal ambil data mesin:", e);
+            machineData = [];
         } finally {
             isLoading = false;
-            // Bersihkan chart lama agar tidak tumpang tindih saat ganti tanggal
-            Object.keys(charts).forEach(machineId => {
-                if (charts[machineId]?.total) charts[machineId].total.destroy();
-                if (charts[machineId]?.notGood) charts[machineId].notGood.destroy();
-            });
-            charts = {};
-            setTimeout(initializeCharts, 100);
+            // 2. Beri jeda DOM sedikit sebelum render ulang
+            setTimeout(() => {
+                if (machineData.length > 0) {
+                    initializeCharts();
+                }
+            }, 100);
         }
     }
 
     function initializeCharts() {
-        // Safety check: Jangan render jika data kosong
         if (machineData.length === 0) return;
-
-        Object.keys(charts).forEach(machineId => {
-            if (charts[machineId]?.total) charts[machineId].total.destroy();
-            if (charts[machineId]?.notGood) charts[machineId].notGood.destroy();
-        });
-        charts = {};
 
         machineData.forEach((machine) => {
             const machineTarget = machine.target; 
@@ -290,10 +299,7 @@
     }
 
     onDestroy(() => {
-        Object.keys(charts).forEach(machineId => {
-            if (charts[machineId]?.total) charts[machineId].total.destroy();
-            if (charts[machineId]?.notGood) charts[machineId].notGood.destroy();
-        });
+        destroyAllCharts();
         window.removeEventListener('resize', handleResize);
     });
 </script>

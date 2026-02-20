@@ -400,7 +400,7 @@
                 <thead class="bg-slate-100 text-slate-600 font-bold text-xs uppercase">
                     <tr>
                         <th class="px-6 py-3">Jam</th>
-                        <th class="px-6 py-3">Nama Item</th>
+                        <th class="px-6 py-3">Kode Item</th>
                         <th class="px-6 py-3 text-right">Target</th>
                         <th class="px-6 py-3 text-right">Nilai Total</th>
                         <th class="px-6 py-3 text-right">Nilai NG</th>
@@ -412,7 +412,9 @@
                         {@const achievement = row.target > 0 ? ((row.actual / row.target) * 100).toFixed(1) : 0}
                         <tr class="hover:bg-slate-50 transition-colors">
                             <td class="px-6 py-3 font-mono font-bold text-indigo-600">{row.label}</td>
-                            <td class="px-6 py-3 text-slate-700 font-medium max-w-xs truncate" title={row.item_name || '-'}>{row.item_name || '-'}</td>
+<td class="px-6 py-3 font-mono text-slate-700 font-medium max-w-xs truncate" title={row.item_code || '-'}>
+    {row.item_code || '-'}
+</td>
                             <td class="px-6 py-3 text-right font-medium text-slate-600">{Math.round(row.target || 0)}</td>
                             <td class="px-6 py-3 text-right font-bold text-slate-800">{row.actual}</td>
                             <td class="px-6 py-3 text-right font-bold text-rose-600">{row.actual_ng}</td>

@@ -118,7 +118,7 @@ jam_master AS (
 raw_data AS (
     SELECT 
         t.tanggal, t.nama AS operator, t.MULAI, t.SELESAI,
-        s.itemName, s.tgtQtyPJam, j.jam_angka,
+        t.itemCode, s.tgtQtyPJam, j.jam_angka,
         
         -- Hitung detik overlap di jam ini
         (GREATEST(0, TIME_TO_SEC(TIMEDIFF(LEAST(t.SELESAI, MAKETIME(j.jam_angka + 1, 0, 0)), GREATEST(t.MULAI, MAKETIME(j.jam_angka, 0, 0)))))) AS seconds_in_slot,
@@ -128,7 +128,6 @@ raw_data AS (
 
         t.Total, t.OK, t.NG
     FROM vtrx_lwp_prs t
-    -- JOIN SUDAH DIPERBARUI KE itemCode
     LEFT JOIN v_stdlot s ON t.itemCode = s.itemCode COLLATE utf8mb4_unicode_ci
     CROSS JOIN jam_master j
     WHERE 
@@ -139,18 +138,14 @@ raw_data AS (
 )
 SELECT 
     CONCAT(LPAD(jam_angka, 2, '0'), ':00') AS label,
-    
-    -- Target = (Detik di Slot Ini / 3600) * Target Per Jam
     COALESCE(SUM((seconds_in_slot / 3600.0) * tgtQtyPJam), 0) AS target,
-    
-    -- Actual & NG dialokasikan berdasarkan rasio waktu
     COALESCE(SUM(ROUND(Total * (seconds_in_slot / total_duration_sec))), 0) AS actual,
     COALESCE(SUM(ROUND(NG * (seconds_in_slot / total_duration_sec))), 0) AS actual_ng,
     
-    -- FITUR YANG HILANG KARENA CONFLICT (JANGAN SAMPAI KETINGGALAN)
-    COALESCE(GROUP_CONCAT(DISTINCT itemName SEPARATOR ', '), '-') AS item_name,
+    -- UBAH: Sekarang mengambil itemCode, bukan itemName
+    COALESCE(GROUP_CONCAT(DISTINCT raw_data.itemCode SEPARATOR ', '), '-') AS item_code,
     
-    CONCAT(COALESCE(MAX(itemName), '-'), ' (', COALESCE(MAX(operator), '-'), ')') AS extra_info
+    CONCAT(COALESCE(MAX(raw_data.itemCode), '-'), ' (', COALESCE(MAX(operator), '-'), ')') AS extra_info
 FROM raw_data
 GROUP BY jam_angka
 ORDER BY jam_angka ASC;
