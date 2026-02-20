@@ -8,21 +8,29 @@
   // Import baru menggunakan html-to-image yang lebih tangguh dengan CSS modern
   import { toPng } from 'html-to-image';
 
-  // Registrasi plugin
   Chart.register(annotationPlugin);
 
-  // Ambil ID & Tanggal dari URL
+  // Type definition
+  interface ChartDataRow {
+    label: string;
+    target: number;
+    actual: number;
+    actual_ng: number;
+    itemCode: string;
+    itemName: string;
+    moldCode: string;
+  }
+
   let urlMachineId = $page.url.searchParams.get('no_mc') || $page.url.searchParams.get('id') || '11A';
   let urlDate = $page.url.searchParams.get('date') || new Date().toISOString().split('T')[0];
 
-  // State Filter - shift default ke "1"
   let filters = {
     tanggal: urlDate,
     mesin: urlMachineId,
     shift: '1'
   };
 
-  let chartData: any[] = [];
+  let chartData: ChartDataRow[] = [];
   let isLoading = false;
   let canvasTotal: HTMLCanvasElement;
   let canvasNG: HTMLCanvasElement;
@@ -40,7 +48,7 @@
     '3': 'Shift 3 (16:00 - 00:00)'
   };
 
-  async function loadChartData() {
+async function loadChartData() {
     isLoading = true;
     try {
       const res = await fetch(`/api/chart/machine?tanggal=${filters.tanggal}&no_mc=${filters.mesin}&shift=${filters.shift}`, {
@@ -443,4 +451,5 @@
             </table>
         </div>
     </div>
+</div>
 </div>
