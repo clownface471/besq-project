@@ -461,7 +461,7 @@ func GetPressingLWPData(c *gin.Context) {
 		Miring            int       `json:"miring"`
 		Mampet            int       `json:"mampet"`
 		Lain2             int       `json:"lain2"`
-		Jam               int       `json:"jam"`
+		Jam               float64   `json:"jam"`
 	}
 
 	var records []LWPRecord
@@ -509,8 +509,8 @@ func GetPressingLWPData(c *gin.Context) {
 			COALESCE(v.lain2, 0) as lain2,
 			COALESCE(v.jam, 0) as jam
 		FROM vtrx_lwp_prs v
-		LEFT JOIN v_stdlot s ON v.moldcode = s.moldCode
-		WHERE v.nama = ? 
+		LEFT JOIN v_stdlot s ON v.itemCode = s.itemCode
+		WHERE v.NPK = ? 
 			AND v.thn = ? 
 			AND v.bln = ? 
 			AND v.tgl = ?

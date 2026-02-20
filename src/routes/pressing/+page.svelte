@@ -335,116 +335,6 @@ async function loadData() {
 
 <div class="min-h-screen bg-slate-50 font-sans text-slate-800 pb-12 relative selection:bg-indigo-100 selection:text-indigo-800">
   <div class="absolute inset-0 z-0 opacity-[0.03] pointer-events-none" style="background-image: radial-gradient(#4f46e5 1px, transparent 1px); background-size: 24px 24px;"></div>
-
-  <header class="sticky top-0 md:static z-50 transition-all duration-300">
-    <div
-      class="bg-white/80 backdrop-blur-md md:bg-transparent border-b border-slate-200 md:border-none shadow-sm md:shadow-none"
-    >
-      <div
-        class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 flex justify-between items-center"
-      >
-        <div class="flex items-center gap-4">
-          <div
-            class="md:hidden w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold shadow-lg shadow-indigo-500/30"
-          >
-            D
-          </div>
-          <div>
-            <h1
-              class="text-xl md:text-3xl font-bold text-slate-800 md:text-white tracking-tight"
-            >
-              Dashboard Karyawan
-            </h1>
-            <div class="flex items-center gap-2 mt-1">
-              <span class="relative flex h-2 w-2 md:hidden">
-                <span
-                  class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"
-                ></span>
-                <span
-                  class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"
-                ></span>
-              </span>
-              <p class="text-xs text-slate-500 md:text-indigo-200 font-medium">
-                Selamat datang kembali, Semangat Bekerja!
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <button
-         
-          class="group relative overflow-hidden px-4 py-2 md:px-5 md:py-2.5 rounded-xl transition-all duration-300
-                       bg-white border border-slate-200 text-slate-600 hover:text-rose-600 hover:border-rose-200 hover:shadow-lg
-                       md:bg-white/10 md:border-white/20 md:text-white md:hover:bg-white/20"
-        >
-          <div class="flex items-center gap-2 relative z-10">
-            <span class="hidden md:inline text-sm font-semibold">Logout</span>
-            <svg
-              class="w-5 h-5 md:w-4 md:h-4 transition-transform group-hover:translate-x-1"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-              /></svg
-            >
-          </div>
-        </button>
-      </div>
-    </div>
-  </header>
-
-  <div
-    class="fixed bottom-6 right-6 md:bottom-auto md:top-1/2 md:right-0 md:-translate-y-1/2 z-[100]"
-  >
-    <button
-      onclick={() => (window.location.href = "/scan")}
-      class="md:hidden w-16 h-16 bg-indigo-600 rounded-full shadow-2xl flex items-center justify-center text-white active:scale-95 transition-transform border-4 border-white"
-    >
-      <svg
-        class="w-8 h-8"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
-        />
-      </svg>
-    </button>
-
-    <button
-      onclick={() => (window.location.href = "/scan")}
-      class="hidden md:flex items-center gap-3 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-4 rounded-l-2xl shadow-xl transition-all duration-300 hover:pr-10 group"
-    >
-      <svg
-        class="w-6 h-6 animate-pulse"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
-        />
-      </svg>
-      <div class="text-left">
-        <p class="text-xs font-bold uppercase tracking-widest opacity-70">
-          Sistem
-        </p>
-        <p class="font-bold">Scan Machine</p>
-      </div>
-    </button>
-  </div>
-
   <main
     class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 md:mt-6 relative z-10 space-y-6"
   >
@@ -462,7 +352,6 @@ async function loadData() {
               <div class="w-4 h-4 md:w-5 md:h-5 bg-emerald-500 rounded-full border-2 md:border-[3px] border-white animate-pulse"></div>
             </div>
           </div>
-
           <div class="flex-1 text-center md:text-left w-full pt-2">
             <div class="flex flex-col md:flex-row justify-between items-center md:items-start gap-4">
               <div>
@@ -605,10 +494,50 @@ async function loadData() {
         </div>
       </div>
 
-      <div class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 lg:p-8 flex flex-col h-full">
+      <div
+        class="bg-white rounded-3xl shadow-sm border border-slate-100 p-6 lg:p-8 flex flex-col h-full"
+      >
         <div class="flex justify-between items-center mb-6">
-          <h3 class="font-bold text-slate-800 text-lg">Produktivitas Mingguan</h3>
-          <span class="text-xs font-medium bg-slate-100 text-slate-500 px-2 py-1 rounded-md">7 Hari Terakhir</span>
+          <h3 class="font-bold text-slate-800 text-lg">
+            Produktivitas Mingguan
+          </h3>
+          <span
+            class="text-xs font-medium bg-slate-100 text-slate-500 px-2 py-1 rounded-md"
+            >7 Hari Terakhir</span
+          >
+        </div>
+
+        <!-- Mobile View (Horizontal Scroll) -->
+        <div class="md:hidden -mx-6 px-6 mb-4">
+          <div class="flex overflow-x-auto gap-3 pb-2 scrollbar-hide">
+            {#each dailyData as day}
+              {#if day.short !== "Min"}
+                <div
+                  class="group flex flex-col items-center justify-end shrink-0 w-16 relative"
+                >
+                  <div
+                    class="absolute -top-8 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs py-1 px-2 rounded pointer-events-none z-10 whitespace-nowrap"
+                  >
+                    OK: {day.ok} / Tot: {day.total}
+                  </div>
+                  <div
+                    class="relative w-10 h-40 bg-slate-50 rounded-t-lg overflow-hidden flex items-end shadow-sm border border-slate-100"
+                  >
+                    <div
+                      class={`w-full rounded-t-lg bg-gradient-to-t transition-all duration-1000 ease-out ${getBarColor(day.efficiency)}`}
+                      style={`height: ${(day.total / maxChartValue) * 100}%`}
+                    ></div>
+                  </div>
+                  <div class="mt-2 text-center">
+                    <p class="text-xs font-bold text-slate-600">{day.short}</p>
+                    <p class="text-[10px] text-slate-400 font-mono mt-0.5">
+                      {day.total}
+                    </p>
+                  </div>
+                </div>
+              {/if}
+            {/each}
+          </div>
         </div>
 
         {#if isLoadingWeekly}
@@ -625,28 +554,65 @@ async function loadData() {
             <p class="text-slate-400 italic">Belum ada data produksi 7 hari terakhir</p>
           </div>
         {:else}
-          <div class="hidden md:flex flex-1 items-end justify-between gap-2 md:gap-4 h-52 md:h-64 pb-2 border-b border-slate-100">
+          <div
+          class="hidden md:flex flex-1 items-end justify-between gap-2 md:gap-4 h-52 md:h-64 pb-2 border-b border-slate-100"
+        >
             {#each dailyData as day}
-              <div class="group flex flex-col items-center justify-end h-full w-full relative">
-                <div class="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs py-1 px-2 rounded pointer-events-none mb-2 z-10 whitespace-nowrap">
+              <div
+                class="group flex flex-col items-center justify-end h-full w-full relative"
+              >
+                <div
+                  class="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs py-1 px-2 rounded pointer-events-none mb-2 z-10 whitespace-nowrap"
+                >
                   Total: {day.total} | OK: {day.ok} | NG: {day.ng}
-                  <div class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-slate-800 rotate-45"></div>
+                  <div
+                    class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-slate-800 rotate-45"
+                  ></div>
                 </div>
-                <div class="relative w-full max-w-10 h-full bg-slate-50 rounded-t-lg overflow-hidden flex items-end">
-                  <div class={`w-full rounded-t-lg bg-gradient-to-t transition-all duration-1000 ease-out ${getBarColor(day.efficiency)}`} style={`height: ${day.total > 0 ? (day.total / maxChartValue) * 100 : 0}%`}></div>
+                <div
+                  class="relative w-full max-w-10 h-full bg-slate-50 rounded-t-lg overflow-hidden flex items-end"
+                >
+                  <div
+                    class={`w-full rounded-t-lg bg-gradient-to-t transition-all duration-1000 ease-out ${getBarColor(day.efficiency)}`}
+                    style={`height: ${day.total > 0 ? (day.total / maxChartValue) * 100 : 0}%`}
+                  ></div>
                 </div>
+
                 <div class="mt-3 text-center">
-                  <p class="text-xs font-bold text-slate-500 group-hover:text-indigo-600 transition-colors">{day.short}</p>
-                  <p class="text-[10px] text-slate-400 font-mono mt-0.5">{day.total}</p>
+                  <p
+                    class="text-xs font-bold text-slate-500 group-hover:text-indigo-600 transition-colors"
+                  >
+                    {day.short}
+                  </p>
+                  <p class="text-[10px] text-slate-400 font-mono mt-0.5">
+                    {day.total}
+                  </p>
                 </div>
               </div>
             {/each}
           </div>
-          
-          <div class="mt-4 md:mt-4 flex flex-wrap justify-center md:justify-start gap-3 md:gap-4 text-xs text-slate-400 border-t border-slate-100 pt-4 md:pt-0 md:border-t-0">
-            <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-emerald-500 shadow-sm"></span><span class="hidden sm:inline">&gt;100%</span><span class="sm:hidden">Optimal</span></span>
-            <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-amber-500 shadow-sm"></span><span class="hidden sm:inline">&gt;80%</span><span class="sm:hidden">Baik</span></span>
-            <span class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-rose-500 shadow-sm"></span><span class="hidden sm:inline">&lt;80%</span><span class="sm:hidden">Perlu Tuning</span></span>
+  
+          <div
+          class="mt-4 md:mt-4 flex flex-wrap justify-center md:justify-start gap-3 md:gap-4 text-xs text-slate-400 border-t border-slate-100 pt-4 md:pt-0 md:border-t-0"
+        >
+            <span class="flex items-center gap-2"
+            ><span class="w-3 h-3 rounded-full bg-emerald-500 shadow-sm"></span>
+            <span class="hidden sm:inline">&gt;100%</span><span
+              class="sm:hidden">Optimal</span
+            ></span
+          >
+            <span class="flex items-center gap-2"
+            ><span class="w-3 h-3 rounded-full bg-amber-500 shadow-sm"></span>
+            <span class="hidden sm:inline">&gt;80%</span><span class="sm:hidden"
+              >Baik</span
+            ></span
+          >
+            <span class="flex items-center gap-2"
+            ><span class="w-3 h-3 rounded-full bg-rose-500 shadow-sm"></span>
+            <span class="hidden sm:inline">&lt;80%</span><span class="sm:hidden"
+              >Perlu Tuning</span
+            ></span
+          >
           </div>
         {/if}
       </div>
