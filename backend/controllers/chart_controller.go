@@ -109,47 +109,50 @@ func GetMachineDetail(c *gin.Context) {
 
 	// Updated query with shift filtering
 	query := `
-	WITH RECURSIVE 
-    jam_master AS (
-        SELECT ? AS jam_angka
-        UNION ALL
-        SELECT jam_angka + 1 FROM jam_master WHERE jam_angka < ?
-    ),
-    raw_data AS (
-        SELECT 
-            t.tanggal, t.nama AS operator, t.MULAI, t.SELESAI,
-            s.itemName, s.tgtQtyPJam, j.jam_angka,
-            
-            -- Hitung detik overlap di jam ini
-            (GREATEST(0, TIME_TO_SEC(TIMEDIFF(LEAST(t.SELESAI, MAKETIME(j.jam_angka + 1, 0, 0)), GREATEST(t.MULAI, MAKETIME(j.jam_angka, 0, 0)))))) AS seconds_in_slot,
-            
-            -- Total durasi transaksi asli (untuk pembagi rasio)
-            NULLIF(TIME_TO_SEC(TIMEDIFF(t.SELESAI, t.MULAI)), 0) AS total_duration_sec,
-
-            t.Total, t.OK, t.NG
-        FROM vtrx_lwp_prs t
-        LEFT JOIN v_stdlot s ON t.moldcode = s.moldCode COLLATE utf8mb4_unicode_ci
-        CROSS JOIN jam_master j
-        WHERE 
-            t.tanggal = ? 
-            AND t.noMC = ? 
-            AND t.MULAI < MAKETIME(j.jam_angka + 1, 0, 0) 
-            AND t.SELESAI > MAKETIME(j.jam_angka, 0, 0)
-    )
+WITH RECURSIVE 
+jam_master AS (
+    SELECT ? AS jam_angka
+    UNION ALL
+    SELECT jam_angka + 1 FROM jam_master WHERE jam_angka < ?
+),
+raw_data AS (
     SELECT 
-        CONCAT(LPAD(jam_angka, 2, '0'), ':00') AS label,
+        t.tanggal, t.nama AS operator, t.MULAI, t.SELESAI,
+        s.itemName, s.tgtQtyPJam, j.jam_angka,
         
-        -- Target = (Detik di Slot Ini / 3600) * Target Per Jam
-        COALESCE(SUM((seconds_in_slot / 3600.0) * tgtQtyPJam), 0) AS target,
+        -- Hitung detik overlap di jam ini
+        (GREATEST(0, TIME_TO_SEC(TIMEDIFF(LEAST(t.SELESAI, MAKETIME(j.jam_angka + 1, 0, 0)), GREATEST(t.MULAI, MAKETIME(j.jam_angka, 0, 0)))))) AS seconds_in_slot,
         
-        -- Actual & NG dialokasikan berdasarkan rasio waktu
-        COALESCE(SUM(ROUND(Total * (seconds_in_slot / total_duration_sec))), 0) AS actual,
-        COALESCE(SUM(ROUND(NG * (seconds_in_slot / total_duration_sec))), 0) AS actual_ng,
-        
-        CONCAT(COALESCE(MAX(itemName), '-'), ' (', COALESCE(MAX(operator), '-'), ')') AS extra_info
-    FROM raw_data
-    GROUP BY jam_angka
-    ORDER BY jam_angka ASC;
+        -- Total durasi transaksi asli (untuk pembagi rasio)
+        NULLIF(TIME_TO_SEC(TIMEDIFF(t.SELESAI, t.MULAI)), 0) AS total_duration_sec,
+
+        t.Total, t.OK, t.NG
+    FROM vtrx_lwp_prs t
+    LEFT JOIN v_stdlot s ON t.moldcode = s.moldCode COLLATE utf8mb4_unicode_ci
+    CROSS JOIN jam_master j
+    WHERE 
+        t.tanggal = ? 
+        AND t.noMC = ? 
+        AND t.MULAI < MAKETIME(j.jam_angka + 1, 0, 0) 
+        AND t.SELESAI > MAKETIME(j.jam_angka, 0, 0)
+)
+SELECT 
+    CONCAT(LPAD(jam_angka, 2, '0'), ':00') AS label,
+    
+    -- Target = (Detik di Slot Ini / 3600) * Target Per Jam
+    COALESCE(SUM((seconds_in_slot / 3600.0) * tgtQtyPJam), 0) AS target,
+    
+    -- Actual & NG dialokasikan berdasarkan rasio waktu
+    COALESCE(SUM(ROUND(Total * (seconds_in_slot / total_duration_sec))), 0) AS actual,
+    COALESCE(SUM(ROUND(NG * (seconds_in_slot / total_duration_sec))), 0) AS actual_ng,
+    
+    -- Kolom mandiri untuk itemName dengan pengamanan multi-item
+    COALESCE(GROUP_CONCAT(DISTINCT itemName SEPARATOR ', '), '-') AS item_name,
+    
+    CONCAT(COALESCE(MAX(itemName), '-'), ' (', COALESCE(MAX(operator), '-'), ')') AS extra_info
+FROM raw_data
+GROUP BY jam_angka
+ORDER BY jam_angka ASC;
 	`
 
 	if err := database.MySQL.Raw(query, startHour, endHour-1, tanggal, noMC).Scan(&results).Error; err != nil {
