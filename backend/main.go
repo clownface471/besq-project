@@ -107,9 +107,6 @@ admin := r.Group("/admin")
     // Usage: GET /api/chart/machine?tanggal=2026-02-01&no_mc=04A
     chartApi.GET("/machine", controllers.GetMachineDetail)
     
-    // Level 3b: Detail Per Jam dengan Item Info untuk Chart & Tabel
-    // Usage: GET /api/chart/machine/hourly?tanggal=2026-02-01&no_mc=04A&shift=1
-    chartApi.GET("/machine/hourly", controllers.GetChartDataByMachine)
     }
 
 	r.Run(":8080")
