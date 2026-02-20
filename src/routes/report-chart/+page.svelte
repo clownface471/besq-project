@@ -308,9 +308,22 @@
 
 <div class="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 p-8">
     <div class="max-w-7xl mx-auto">
-        <div class="mb-12">
-            <h1 class="text-4xl font-bold text-slate-900 mb-3">Dashboard Manager</h1>
-            <p class="text-slate-600 text-lg">Pantau performa setiap divisi produksi secara real-time</p>
+        <div class="mb-12 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div>
+                <h1 class="text-4xl font-bold text-slate-900 mb-3">Dashboard Manager</h1>
+                <p class="text-slate-600 text-lg">Pantau performa setiap divisi produksi secara real-time</p>
+            </div>
+            
+            <div class="flex items-center gap-3 bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+                <label for="dashboard-date" class="text-sm font-bold text-slate-600">Tanggal:</label>
+                <input 
+                    id="dashboard-date"
+                    type="date" 
+                    bind:value={selectedDate} 
+                    on:change={fetchDashboardData}
+                    class="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all cursor-pointer"
+                >
+            </div>
         </div>
 
         {#if isLoading}
@@ -319,7 +332,7 @@
                     <div class="inline-block animate-spin">
                         <i class="fa-solid fa-spinner text-indigo-600 text-4xl"></i>
                     </div>
-                    <p class="text-slate-600 mt-4">Memuat data...</p>
+                    <p class="text-slate-600 mt-4 font-medium">Memuat data produksi...</p>
                 </div>
             </div>
         {:else}
@@ -342,21 +355,25 @@
                             <div class="mb-8 flex items-center gap-3 px-4 py-3 bg-slate-50 rounded-lg border border-slate-200">
                                 <span class="{status.badge} w-3 h-3 rounded-full animate-pulse"></span>
                                 <span class="text-slate-700 text-sm font-bold flex-1">{status.label}</span>
-                                <span class="text-slate-600 text-sm font-semibold px-3 py-1 bg-white rounded-md">Total: <span class="text-slate-900 font-bold">{data.total}</span></span>
+                                <span class="text-slate-600 text-sm font-semibold px-3 py-1 bg-white rounded-md border border-slate-100">Total: <span class="text-slate-900 font-bold">{data.total}</span></span>
                             </div>
                             <div class="grid grid-cols-2 gap-6">
-                                <div class="flex flex-col items-center p-4 bg-blue-50 rounded-lg border border-blue-200">
-                                    <p class="text-xs text-blue-700 font-bold mb-3">Total Output</p>
-                                    <canvas id="chart-total-{division.id}" style="max-height: 120px;"></canvas>
+                                <div class="flex flex-col items-center p-4 bg-blue-50 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors">
+                                    <p class="text-xs text-blue-700 font-bold mb-3 uppercase tracking-wider">Total Output</p>
+                                    <div class="w-full">
+                                        <canvas id="chart-total-{division.id}" style="max-height: 120px;"></canvas>
+                                    </div>
                                 </div>
-                                <div class="flex flex-col items-center p-4 bg-red-50 rounded-lg border border-red-200">
-                                    <p class="text-xs text-red-700 font-bold mb-3">Total NG</p>
-                                    <canvas id="chart-notgood-{division.id}" style="max-height: 120px;"></canvas>
+                                <div class="flex flex-col items-center p-4 bg-red-50 rounded-lg border border-red-200 hover:bg-red-100 transition-colors">
+                                    <p class="text-xs text-red-700 font-bold mb-3 uppercase tracking-wider">Total NG</p>
+                                    <div class="w-full">
+                                        <canvas id="chart-notgood-{division.id}" style="max-height: 120px;"></canvas>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                         <div class="px-8 py-4 bg-slate-50 border-t border-slate-100">
-                            <button on:click={() => handleDetailClick(division.id)} class="w-full py-2 px-4 rounded-lg text-sm font-semibold text-white bg-slate-700 hover:bg-slate-800 transition-all duration-300">
+                            <button on:click={() => handleDetailClick(division.id)} class="w-full py-2 px-4 rounded-lg text-sm font-semibold text-white bg-slate-700 hover:bg-slate-800 transition-all duration-300 shadow-sm">
                                 Lihat Detail
                             </button>
                         </div>

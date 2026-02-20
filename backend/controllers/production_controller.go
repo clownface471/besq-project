@@ -276,25 +276,132 @@ func CreateLWP(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "LWP Created", "data": cycle})
 }
 
-// GetChartDataByMachine - Get hourly production data for specific machine with item info
-func GetChartDataByMachine(c *gin.Context) {
-	tanggal := c.Query("tanggal")
-	noMC := c.Query("no_mc")
-	shift := c.Query("shift") // "1", "2", or "3"
-
-	if tanggal == "" || noMC == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Parameter tanggal dan no_mc wajib diisi"})
+// GET: /api/pressing/weekly-stats
+func GetPressingWeeklyStats(c *gin.Context) {
+	namaOperator := c.Query("nama")
+	if namaOperator == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Parameter 'nama' operator wajib diisi"})
 		return
 	}
 
-	// Default shift to "1" if not provided
-	if shift == "" {
-		shift = "1"
+	// Hitung tanggal 7 hari yang lalu
+	endDate := time.Now()
+	startDate := endDate.AddDate(0, 0, -6) // 6 hari ke belakang + hari ini = 7 hari
+
+	type DailyStats struct {
+		Tanggal    time.Time `json:"tanggal"`
+		Total      int       `json:"total"`
+		OK         int       `json:"ok"`
+		NG         int       `json:"ng"`
+		Efficiency float64   `json:"efficiency"`
 	}
 
-	// Parse tanggal
+	// HAPUS BARIS INI - tidak digunakan:
+	// var dailyStats []DailyStats
+
+	// Query untuk aggregate data per hari
+	query := `
+		SELECT 
+			DATE(CONCAT(thn, '-', LPAD(bln, 2, '0'), '-', LPAD(tgl, 2, '0'))) as tanggal,
+			COALESCE(SUM(TOTAL), 0) as total,
+			COALESCE(SUM(OK), 0) as ok,
+			COALESCE(SUM(NG), 0) as ng
+		FROM vtrx_lwp_prs
+		WHERE nama = ?
+			AND DATE(CONCAT(thn, '-', LPAD(bln, 2, '0'), '-', LPAD(tgl, 2, '0'))) BETWEEN ? AND ?
+		GROUP BY DATE(CONCAT(thn, '-', LPAD(bln, 2, '0'), '-', LPAD(tgl, 2, '0')))
+		ORDER BY tanggal ASC
+	`
+
+	rows, err := database.MySQL.Raw(query, namaOperator, startDate.Format("2006-01-02"), endDate.Format("2006-01-02")).Rows()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal query data mingguan: " + err.Error()})
+		return
+	}
+	defer rows.Close()
+
+	// Map untuk menyimpan data per tanggal
+	dataMap := make(map[string]DailyStats)
+	for rows.Next() {
+		var stat DailyStats
+		if err := rows.Scan(&stat.Tanggal, &stat.Total, &stat.OK, &stat.NG); err != nil {
+			continue
+		}
+		
+		// Hitung efficiency
+		if stat.Total > 0 {
+			stat.Efficiency = (float64(stat.OK) / float64(stat.Total)) * 100
+		}
+		
+		dataMap[stat.Tanggal.Format("2006-01-02")] = stat
+	}
+
+	// Format data untuk frontend (pastikan 7 hari lengkap)
+	dayNames := []string{"Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"}
+	dayShorts := []string{"Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"}
+	
+	var weeklyData []gin.H
+	
+	for i := 0; i < 7; i++ {
+		currentDate := startDate.AddDate(0, 0, i)
+		dateKey := currentDate.Format("2006-01-02")
+		dayOfWeek := int(currentDate.Weekday())
+		
+		stat, exists := dataMap[dateKey]
+		if !exists {
+			stat = DailyStats{
+				Tanggal:    currentDate,
+				Total:      0,
+				OK:         0,
+				NG:         0,
+				Efficiency: 0,
+			}
+		}
+		
+		weeklyData = append(weeklyData, gin.H{
+			"day":        dayNames[dayOfWeek],
+			"short":      dayShorts[dayOfWeek],
+			"date":       dateKey,
+			"total":      stat.Total,
+			"ok":         stat.OK,
+			"ng":         stat.NG,
+			"efficiency": stat.Efficiency,
+		})
+	}
+
+	// Hitung summary untuk hari ini
+	today := endDate.Format("2006-01-02")
+	todayStats, _ := dataMap[today]
+
+	c.JSON(http.StatusOK, gin.H{
+		"weeklyData": weeklyData,
+		"summary": gin.H{
+			"todayCompleted": todayStats.OK,
+			"todayTarget":    60, // Bisa disesuaikan dengan target real
+			"efficiency":     int(todayStats.Efficiency),
+		},
+	})
+}
+
+// GetPressingLWPData - Ambil data LWP dari database untuk operator tertentu
+func GetPressingLWPData(c *gin.Context) {
+	namaOperator := c.Query("nik")
+	tanggal := c.Query("tanggal")
+	
+	fmt.Printf("[LWP DATA] Request received - NIK: %s, Tanggal: %s\n", namaOperator, tanggal)
+	
+	if namaOperator == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Parameter 'nik' wajib diisi"})
+		return
+	}
+
+	if tanggal == "" {
+		tanggal = time.Now().Format("2006-01-02")
+	}
+
 	parsedDate, err := time.Parse("2006-01-02", tanggal)
 	if err != nil {
+		fmt.Printf("[LWP DATA ERROR] Parse date failed: %v\n", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Format tanggal salah (gunakan YYYY-MM-DD)"})
 		return
 	}
@@ -303,81 +410,241 @@ func GetChartDataByMachine(c *gin.Context) {
 	bln := int(parsedDate.Month())
 	tgl := parsedDate.Day()
 
-	type ChartRecord struct {
-		Label     string  `json:"label"`
-		Target    float64 `json:"target"`
-		Actual    int     `json:"actual"`
-		ActualNG  int     `json:"actual_ng"`
-		ItemCode  string  `json:"itemCode"`
-		ItemName  string  `json:"itemName"`
-		MoldCode  string  `json:"moldCode"`
-	}
+	fmt.Printf("[LWP DATA] Parsed date - Tahun: %d, Bulan: %d, Tanggal: %d\n", thn, bln, tgl)
 
-	var records []ChartRecord
-
-	// Determine hour range based on shift
-	var hourStart, hourEnd int
-	switch shift {
-	case "1":
-		hourStart, hourEnd = 0, 7
-	case "2":
-		hourStart, hourEnd = 8, 15
-	case "3":
-		hourStart, hourEnd = 16, 23
-	default:
-		hourStart, hourEnd = 0, 23
-	}
-
-	// Query dengan JOIN ke v_stdlot untuk mendapatkan itemName
-	query := `
-		SELECT 
-			CONCAT(LPAD(jam, 2, '0'), ':00') as label,
-			COALESCE(AVG(target), 0) as target,
-			COALESCE(SUM(OK), 0) as actual,
-			COALESCE(SUM(NG), 0) as actual_ng,
-			COALESCE(s.itemCode, '-') as itemCode,
-			COALESCE(s.itemName, v.moldcode) as itemName,
-			v.moldcode as moldCode
-		FROM vtrx_lwp_prs v
-		LEFT JOIN v_stdlot s ON v.moldcode = s.moldCode
-		WHERE v.noMC = ? 
-			AND v.thn = ? 
-			AND v.bln = ? 
-			AND v.tgl = ?
-			AND v.shift = ?
-			AND v.jam BETWEEN ? AND ?
-		GROUP BY v.jam, v.moldcode, s.itemCode, s.itemName
-		ORDER BY v.jam
-	`
-
-	if err := database.MySQL.Raw(query, noMC, thn, bln, tgl, shift, hourStart, hourEnd).Scan(&records).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Gagal mengambil data chart: " + err.Error()})
+	if database.MySQL == nil {
+		fmt.Printf("[LWP DATA ERROR] MySQL connection is nil\n")
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error": "Database MySQL tidak terhubung",
+			"lwpRecords": []interface{}{},
+		})
 		return
 	}
 
-	// Fill in missing hours with zero values
-	hourMap := make(map[string]ChartRecord)
-	for _, rec := range records {
-		hourMap[rec.Label] = rec
+	type LWPRecord struct {
+		NoMC              string    `json:"noMesin"`
+		Tanggal           string    `json:"tanggal"`
+		Shift             string    `json:"shift"`
+		Nama              string    `json:"nik"`
+		MoldCode          string    `json:"kodePart"`
+		ItemCode          string    `json:"itemCode"`
+		ItemName          string    `json:"partName"`
+		MoldName          string    `json:"moldName"`
+		LotNo             string    `json:"noLot"`
+		JamMulai          string    `json:"jamMulai"`
+		JamSelesai        string    `json:"jamSelesai"`
+		OK                int       `json:"hasilOk"`
+		NG                int       `json:"ng"`
+		Total             int       `json:"total"`
+		Bintik            int       `json:"bintik"`
+		TNgisi            int       `json:"tNgisi"`
+		Lengket           int       `json:"lengket"`
+		Deform            int       `json:"deform"`
+		Mentah            int       `json:"mentah"`
+		Retak             int       `json:"retak"`
+		Robek             int       `json:"robek"`
+		KBody             int       `json:"kBody"`
+		Kotor             int       `json:"kotor"`
+		CCavity           int       `json:"cCavity"`
+		Karat             int       `json:"karat"`
+		CMetal            int       `json:"cMetal"`
+		Angin             int       `json:"angin"`
+		Runner            int       `json:"runner"`
+		Bonding           int       `json:"bonding"`
+		Dimensi           int       `json:"dimensi"`
+		Hardness          int       `json:"hardness"`
+		Bloming           int       `json:"bloming"`
+		SalahSlit         int       `json:"salahSlit"`
+		Champer           int       `json:"champer"`
+		MtlKelihatan      int       `json:"mtlKelihatan"`
+		Burry             int       `json:"burry"`
+		Miring            int       `json:"miring"`
+		Mampet            int       `json:"mampet"`
+		Lain2             int       `json:"lain2"`
+		Jam               float64   `json:"jam"`
 	}
 
-	result := []ChartRecord{}
-	for h := hourStart; h <= hourEnd; h++ {
-		hourLabel := fmt.Sprintf("%02d:00", h)
-		if rec, exists := hourMap[hourLabel]; exists {
-			result = append(result, rec)
-		} else {
-			result = append(result, ChartRecord{
-				Label:    hourLabel,
-				Target:   30, // Default target
-				Actual:   0,
-				ActualNG: 0,
-				ItemCode: "-",
-				ItemName: "-",
-				MoldCode: "-",
-			})
+	var records []LWPRecord
+
+	query := `
+		SELECT 
+			v.noMC,
+			CONCAT(v.thn, '-', LPAD(v.bln, 2, '0'), '-', LPAD(v.tgl, 2, '0')) as tanggal,
+			COALESCE(v.shift, '') as shift,
+			COALESCE(v.nama, '') as nama,
+			v.moldcode,
+			COALESCE(s.itemCode, '-') as itemCode,
+			COALESCE(s.itemName, v.moldcode) as itemName,
+			COALESCE(s.moldName, '') as moldName,
+			v.lotNo,
+			COALESCE(TIME_FORMAT(v.MULAI, '%H:%i'), '00:00') as jamMulai,
+			COALESCE(TIME_FORMAT(v.SELESAI, '%H:%i'), '00:00') as jamSelesai,
+			COALESCE(v.OK, 0) as OK,
+			COALESCE(v.NG, 0) as NG,
+			COALESCE(v.Total, 0) as Total,
+			COALESCE(v.Bintik, 0) as bintik,
+			COALESCE(v.TNgisi, 0) as tNgisi,
+			COALESCE(v.Lengket, 0) as lengket,
+			COALESCE(v.Deform, 0) as deform,
+			COALESCE(v.Mentah, 0) as mentah,
+			COALESCE(v.Retak, 0) as retak,
+			COALESCE(v.Robek, 0) as robek,
+			COALESCE(v.KBody, 0) as kBody,
+			COALESCE(v.Kotor, 0) as kotor,
+			COALESCE(v.CCavity, 0) as cCavity,
+			COALESCE(v.Karat, 0) as karat,
+			COALESCE(v.CMetal, 0) as cMetal,
+			COALESCE(v.Angin, 0) as angin,
+			COALESCE(v.Runner, 0) as runner,
+			COALESCE(v.Bonding, 0) as bonding,
+			COALESCE(v.Dimensi, 0) as dimensi,
+			COALESCE(v.Hardness, 0) as hardness,
+			COALESCE(v.Bloming, 0) as bloming,
+			COALESCE(v.SalahSlit, 0) as salahSlit,
+			COALESCE(v.Champer, 0) as champer,
+			COALESCE(v.MtlKelihatan, 0) as mtlKelihatan,
+			COALESCE(v.Burry, 0) as burry,
+			COALESCE(v.Miring, 0) as miring,
+			COALESCE(v.Mampet, 0) as mampet,
+			COALESCE(v.lain2, 0) as lain2,
+			COALESCE(v.jam, 0) as jam
+		FROM vtrx_lwp_prs v
+		LEFT JOIN v_stdlot s ON v.itemCode = s.itemCode
+		WHERE v.NPK = ? 
+			AND v.thn = ? 
+			AND v.bln = ? 
+			AND v.tgl = ?
+		ORDER BY v.MULAI DESC
+	`
+
+	fmt.Printf("[LWP DATA] Executing query with params - Nama: %s, Thn: %d, Bln: %d, Tgl: %d\n", 
+		namaOperator, thn, bln, tgl)
+
+	if err := database.MySQL.Raw(query, namaOperator, thn, bln, tgl).Scan(&records).Error; err != nil {
+		fmt.Printf("[LWP DATA ERROR] Query failed: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Gagal mengambil data LWP: " + err.Error(),
+			"query_params": gin.H{
+				"nama": namaOperator,
+				"thn": thn,
+				"bln": bln,
+				"tgl": tgl,
+			},
+		})
+		return
+	}
+
+	fmt.Printf("[LWP DATA] Query successful - Records found: %d\n", len(records))
+
+	if len(records) == 0 {
+		fmt.Printf("[LWP DATA] No records found for Nama: %s on date: %d-%d-%d\n", namaOperator, thn, bln, tgl)
+		c.JSON(http.StatusOK, gin.H{
+			"lwpRecords": []interface{}{},
+			"total":      0,
+			"message":    "Tidak ada data LWP untuk hari ini",
+		})
+		return
+	}
+
+	// Group data berdasarkan mesin
+	type MachineGroup struct {
+		NoMesin   string                   `json:"noMesin"`
+		Tanggal   string                   `json:"tanggal"`
+		Shift     string                   `json:"shift"`
+		NIK       string                   `json:"nik"`
+		PartName  string                   `json:"partName"`
+		KodePart  string                   `json:"kodePart"`
+		ItemCode  string                   `json:"itemCode"`
+		MoldName  string                   `json:"moldName"`
+		Details   []map[string]interface{} `json:"details"`
+	}
+
+	machineMap := make(map[string]*MachineGroup)
+
+	for _, record := range records {
+		key := record.NoMC + "_" + record.Shift
+
+		if _, exists := machineMap[key]; !exists {
+			machineMap[key] = &MachineGroup{
+				NoMesin:  record.NoMC,
+				Tanggal:  record.Tanggal,
+				Shift:    record.Shift,
+				NIK:      record.Nama,
+				PartName: record.ItemName,
+				KodePart: record.MoldCode,
+				ItemCode: record.ItemCode,
+				MoldName: record.MoldName,
+				Details:  []map[string]interface{}{},
+			}
 		}
+
+// Build klasifikasi reject - hanya jenis dan qty yang ada saja
+klasifikasiReject := []map[string]interface{}{}
+
+rejectTypes := []struct {
+    Nama string
+    Qty  int
+}{
+    {"Bintik", record.Bintik},
+    {"Tidak Ngisi", record.TNgisi},
+    {"Lengket", record.Lengket},
+    {"Deform", record.Deform},
+    {"Mentah", record.Mentah},
+    {"Retak", record.Retak},
+    {"Robek", record.Robek},
+    {"K-Body", record.KBody},
+    {"Kotor", record.Kotor},
+    {"C-Cavity", record.CCavity},
+    {"Karat", record.Karat},
+    {"C-Metal", record.CMetal},
+    {"Angin", record.Angin},
+    {"Runner", record.Runner},
+    {"Bonding", record.Bonding},
+    {"Dimensi", record.Dimensi},
+    {"Hardness", record.Hardness},
+    {"Bloming", record.Bloming},
+    {"Salah Slit", record.SalahSlit},
+    {"Champer", record.Champer},
+    {"Material Kelihatan", record.MtlKelihatan},
+    {"Burry", record.Burry},
+    {"Miring", record.Miring},
+    {"Mampet", record.Mampet},
+    {"Lain-lain", record.Lain2},
+}
+
+for _, r := range rejectTypes {
+    if r.Qty > 0 {
+        klasifikasiReject = append(klasifikasiReject, map[string]interface{}{
+            "jenis": r.Nama,
+            "qty":   r.Qty,
+        })
+    }
+}
+
+detail := map[string]interface{}{
+    "noLot":             record.LotNo,
+    "jamMulai":          record.JamMulai,
+    "jamSelesai":        record.JamSelesai,	
+    "hasilOk":           record.OK,
+    "ng":                record.NG,
+    "total":             record.Total,
+    "jam":               record.Jam,
+    "klasifikasiReject": klasifikasiReject,
+}
+
+		machineMap[key].Details = append(machineMap[key].Details, detail)
 	}
 
-	c.JSON(http.StatusOK, result)
+	// Convert map to array
+	result := []MachineGroup{}
+	for _, group := range machineMap {
+		result = append(result, *group)
+	}
+
+	fmt.Printf("[LWP DATA] Response prepared - Machine groups: %d\n", len(result))
+
+	c.JSON(http.StatusOK, gin.H{
+		"lwpRecords": result,
+		"total":      len(result),
+	})
 }

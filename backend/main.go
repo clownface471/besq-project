@@ -81,6 +81,9 @@ admin := r.Group("/admin")
 		api.GET("/pressing/today", controllers.GetPressingDashboard)
 		api.POST("/scan-machine", controllers.ScanMachine)
 		api.POST("/lwp", controllers.CreateLWP)
+		api.GET("/pressing/weekly-stats", controllers.GetPressingWeeklyStats)
+		api.GET("/pressing/lwp-data", controllers.GetPressingLWPData)
+
 	}
 
 	// -----------------------------------------------------------

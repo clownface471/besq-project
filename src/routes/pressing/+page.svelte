@@ -9,6 +9,7 @@
   // ===== Svelte 5 $state for reactive data =====
   
   let isLoading = $state(false);
+  let isLoadingWeekly = $state(false);
   let errorMessage = $state("");
   let successMessage = $state("");
 
@@ -19,25 +20,26 @@
     reject: "",
   });
 
-  // ===== PERBAIKAN: Data Karyawan mengambil dari kolom 'nama' dan 'emailAddr' =====
+  // ===== Data Karyawan mengambil dari kolom 'nama' dan 'emailAddr' =====
   let employee = $derived({
-    name: $auth.user?.name || "Operator",        // Ambil dari column 'nama' (bukan nik!)
+    name: $auth.user?.name || "Operator",
     position: "Pressing Specialist",         
     department: "Production - Pressing",     
-    nik: $auth.user?.username || "N/A",          // NIK dari column 'nik' 
-    email: $auth.user?.email || "-",             // Email dari column 'emailAddr'
-    photo: `https://ui-avatars.com/api/?name=${encodeURIComponent($auth.user?.name || 'User')}&background=random`  // Avatar pakai nama
+    nik: $auth.user?.username || "N/A",
+    email: $auth.user?.email || "-",
+    photo: `https://ui-avatars.com/api/?name=${encodeURIComponent($auth.user?.name || 'User')}&background=random`
   });
 
-  let dailyCompounds = $state([
-    { day: "Senin", short: "Sen", target: 4, actual: 4, efficiency: 100 },
-    { day: "Selasa", short: "Sel", target: 4, actual: 3.5, efficiency: 88 },
-    { day: "Rabu", short: "Rab", target: 4, actual: 5, efficiency: 125 },
-    { day: "Kamis", short: "Kam", target: 4, actual: 4, efficiency: 100 },
-    { day: "Jumat", short: "Jum", target: 4, actual: 4, efficiency: 100 },
-    { day: "Sabtu", short: "Sab", target: 3, actual: 2, efficiency: 67 },
-    { day: "Minggu", short: "Min", target: 0, actual: 0, efficiency: 0 },
-  ]);
+  // ===== PERUBAHAN: Data grafik dari database =====
+  let dailyData = $state<{
+    day: string;
+    short: string;
+    date: string;
+    total: number;
+    ok: number;
+    ng: number;
+    efficiency: number;
+  }[]>([]);
 
   let monthlyData = $state({
     completed: 0,
@@ -77,8 +79,6 @@
 
   // Fungsi untuk membangun machineStatuses dari lwpRecords
   function updateMachineStatuses() {
-    // Jika ada LWP records, kita ambil status mesin dari sana
-    // Jika kosong, kita biarkan kosong atau bisa diisi data dummy jika perlu
     if (lwpRecords.length > 0) {
         machineStatuses = lwpRecords.map((m: any) => {
           const latestDetail = m.details && m.details.length ? m.details[m.details.length - 1] : null;
@@ -93,16 +93,65 @@
   }
 
   // Logic untuk Bar Chart Scale
-  const maxChartValue = Math.max(
-    ...dailyCompounds.map((d) => d.actual),
-    ...dailyCompounds.map((d) => d.target),
-    6
+  let maxChartValue = $derived(
+    Math.max(
+      ...dailyData.map((d) => d.total),
+      6
+    )
   );
 
   // ===== API Functions =====
 
+  // Load data grafik operator untuk 7 hari terakhir
+  async function loadOperatorWeeklyData() {
+    isLoadingWeekly = true;
+    errorMessage = "";
+
+    try {
+      const authToken = get(auth).token;
+      if (!authToken) {
+        errorMessage = "Sesi habis. Silakan login ulang.";
+        return;
+      }
+
+      // Ambil nama operator dari auth
+      const operatorName = employee.name;
+
+      const response = await fetch(`${API_URL}/api/pressing/weekly-stats?nama=${encodeURIComponent(operatorName)}`, {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Gagal memuat data mingguan");
+      }
+
+      const data = await response.json();
+      
+      // Update dailyData dengan data dari backend
+      if (data.weeklyData && Array.isArray(data.weeklyData)) {
+        dailyData = data.weeklyData;
+      }
+
+      // Update monthlyData jika ada
+      if (data.summary) {
+        monthlyData = {
+          ...monthlyData,
+          ...data.summary
+        };
+      }
+
+    } catch (error) {
+      errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan";
+      console.error("Error loading weekly data:", error);
+    } finally {
+      isLoadingWeekly = false;
+    }
+  }
+
   // Load today's pressing data from API
-  async function loadData() {
+async function loadData() {
     isLoading = true;
     errorMessage = "";
 
@@ -113,46 +162,56 @@
         return;
       }
 
-      const response = await fetch(`${API_URL}/api/pressing/today`, {
+      // Ambil NIK operator dari data employee
+      const operatorNIK = employee.nik;
+      const today = new Date().toISOString().split('T')[0]; // Format YYYY-MM-DD
+
+      // FETCH DATA LWP DARI DATABASE
+      const lwpResponse = await fetch(`${API_URL}/api/pressing/lwp-data?nik=${encodeURIComponent(operatorNIK)}&tanggal=${today}`, {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },
       });
 
-      if (!response.ok) {
-        throw new Error("Gagal memuat data pressing");
+      if (!lwpResponse.ok) {
+        throw new Error("Gagal memuat data LWP");
       }
 
-      const data = await response.json();
+      const lwpData = await lwpResponse.json();
       
-      // Update state dengan data dari backend
-      if (data.stats) monthlyData = data.stats;
-      
-      // Jika API mengembalikan LWP, update lwpRecords
-      if (data.lwpRecords) {
-        // Mapping data backend (per_cycles) ke format LWP Frontend jika perlu
-        // Untuk sekarang kita asumsikan backend mengirim array cycles
-        // Kita sesuaikan sedikit agar tabel tidak error
-        lwpRecords = data.lwpRecords.map((cycle: any) => ({
-             noMesin: cycle.no_mc,
-             tanggal: cycle.CreatedAt,
-             shift: "I",
-             nik: cycle.nama_operator,
-             partName: cycle.item,
-             kodePart: "-",
-             details: [{
-                 noLot: cycle.no_lot,
-                 jamMulai: new Date(cycle.CreatedAt).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'}),
-                 jamSelesai: "-",
-                 hasilOk: 1, // Asumsi 1 cycle = 1 output
-                 ng: 0,
-                 klasifikasiReject: []
-             }]
-        }));
+      // Update lwpRecords dengan data dari database
+      if (lwpData.lwpRecords && Array.isArray(lwpData.lwpRecords)) {
+        lwpRecords = lwpData.lwpRecords;
+      } else {
+        lwpRecords = [];
       }
       
-      // update machineStatuses setiap kali data LWP/records berubah
+      // Update machineStatuses dari lwpRecords
       updateMachineStatuses();
+
+      // Hitung statistik dari data real
+      if (lwpRecords.length > 0) {
+        let totalCompleted = 0;
+        let totalNG = 0;
+
+        lwpRecords.forEach((machine: any) => {
+          if (machine.details && Array.isArray(machine.details)) {
+            machine.details.forEach((detail: any) => {
+              totalCompleted += detail.hasilOk || 0;
+              totalNG += detail.ng || 0;
+            });
+          }
+        });
+
+        // Update monthlyData dengan data real
+        monthlyData = {
+          ...monthlyData,
+          todayCompleted: totalCompleted,
+          efficiency: monthlyData.todayTarget > 0 
+            ? Math.round((totalCompleted / monthlyData.todayTarget) * 100) 
+            : 0
+        };
+      }
 
     } catch (error) {
       errorMessage = error instanceof Error ? error.message : "Terjadi kesalahan";
@@ -162,7 +221,31 @@
     }
   }
 
-// Fungsi Scan Mesin (Navigasi)
+  function getRejectColor(classify: string) {
+    const colorMap: Record<string, string> = {
+      "Bintik": "bg-red-50 text-red-700 border-red-200",
+      "Kotor": "bg-yellow-50 text-yellow-700 border-yellow-200",
+      "Sompel": "bg-orange-50 text-orange-700 border-orange-200",
+      "Belang": "bg-pink-50 text-pink-700 border-pink-200",
+      "Scratch": "bg-purple-50 text-purple-700 border-purple-200",
+      "Tipis": "bg-indigo-50 text-indigo-700 border-indigo-200",
+      "Gelombang": "bg-blue-50 text-blue-700 border-blue-200",
+      "Silver Mark": "bg-cyan-50 text-cyan-700 border-cyan-200",
+      "Flow Mark": "bg-teal-50 text-teal-700 border-teal-200",
+      "Gompal": "bg-lime-50 text-lime-700 border-lime-200",
+      "Bending": "bg-emerald-50 text-emerald-700 border-emerald-200",
+      "Short Shot": "bg-rose-50 text-rose-700 border-rose-200",
+      "Bushing": "bg-amber-50 text-amber-700 border-amber-200",
+      "Nilon": "bg-violet-50 text-violet-700 border-violet-200",
+      "Sink": "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200",
+      "Hitam Putih": "bg-slate-50 text-slate-700 border-slate-200",
+      "Lain-lain": "bg-gray-50 text-gray-700 border-gray-200"
+    };
+    
+    return colorMap[classify] || "bg-slate-50 text-slate-700 border-slate-200";
+  }
+
+  // Fungsi Scan Mesin (Navigasi)
   function handleScanMachine() {
     goto("/scan-mesin");
   }
@@ -205,12 +288,7 @@
         throw new Error("Gagal mencatat cycle");
       }
 
-      // Feedback sukses
       console.log("Cycle recorded:", payload);
-      // alert(`Cycle tercatat: ${machine.noMesin}`);
-      
-      // Reload data untuk update angka real-time (opsional)
-      // loadData(); 
 
     } catch (error) {
       console.error("Error recording cycle:", error);
@@ -248,16 +326,10 @@
     return "bg-rose-500 from-rose-500 to-rose-400";
   }
 
-  function getRejectColor(classify: string) {
-    if (classify === "Cacat Permukaan") return "bg-red-50 text-red-700 border-red-200";
-    if (classify === "Dimensi") return "bg-yellow-50 text-yellow-700 border-yellow-200";
-    if (classify === "Goresan") return "bg-orange-50 text-orange-700 border-orange-200";
-    return "bg-slate-50 text-slate-700 border-slate-200";
-  }
-
   // Load data on mount
   onMount(() => {
     loadData();
+    loadOperatorWeeklyData();
   });
 </script>
 
@@ -438,7 +510,7 @@
         <!-- Mobile View (Horizontal Scroll) -->
         <div class="md:hidden -mx-6 px-6 mb-4">
           <div class="flex overflow-x-auto gap-3 pb-2 scrollbar-hide">
-            {#each dailyCompounds as day}
+            {#each dailyData as day}
               {#if day.short !== "Min"}
                 <div
                   class="group flex flex-col items-center justify-end shrink-0 w-16 relative"
@@ -446,20 +518,20 @@
                   <div
                     class="absolute -top-8 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs py-1 px-2 rounded pointer-events-none z-10 whitespace-nowrap"
                   >
-                    {day.target}/{day.actual}
+                    OK: {day.ok} / Tot: {day.total}
                   </div>
                   <div
                     class="relative w-10 h-40 bg-slate-50 rounded-t-lg overflow-hidden flex items-end shadow-sm border border-slate-100"
                   >
                     <div
                       class={`w-full rounded-t-lg bg-gradient-to-t transition-all duration-1000 ease-out ${getBarColor(day.efficiency)}`}
-                      style={`height: ${(day.actual / maxChartValue) * 100}%`}
+                      style={`height: ${(day.total / maxChartValue) * 100}%`}
                     ></div>
                   </div>
                   <div class="mt-2 text-center">
                     <p class="text-xs font-bold text-slate-600">{day.short}</p>
                     <p class="text-[10px] text-slate-400 font-mono mt-0.5">
-                      {day.actual}
+                      {day.total}
                     </p>
                   </div>
                 </div>
@@ -468,18 +540,31 @@
           </div>
         </div>
 
-        <div
+        {#if isLoadingWeekly}
+          <div class="flex-1 flex items-center justify-center">
+            <div class="text-center">
+              <div class="inline-block animate-spin">
+                <i class="fa-solid fa-spinner text-indigo-600 text-2xl"></i>
+              </div>
+              <p class="text-slate-500 text-sm mt-2">Memuat data...</p>
+            </div>
+          </div>
+        {:else if dailyData.length === 0}
+          <div class="flex-1 flex items-center justify-center">
+            <p class="text-slate-400 italic">Belum ada data produksi 7 hari terakhir</p>
+          </div>
+        {:else}
+          <div
           class="hidden md:flex flex-1 items-end justify-between gap-2 md:gap-4 h-52 md:h-64 pb-2 border-b border-slate-100"
         >
-          {#each dailyCompounds as day}
-            {#if day.short !== "Min"}
+            {#each dailyData as day}
               <div
                 class="group flex flex-col items-center justify-end h-full w-full relative"
               >
                 <div
                   class="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-xs py-1 px-2 rounded pointer-events-none mb-2 z-10 whitespace-nowrap"
                 >
-                  Target: {day.target} | Actual: {day.actual}
+                  Total: {day.total} | OK: {day.ok} | NG: {day.ng}
                   <div
                     class="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-slate-800 rotate-45"
                   ></div>
@@ -489,7 +574,7 @@
                 >
                   <div
                     class={`w-full rounded-t-lg bg-gradient-to-t transition-all duration-1000 ease-out ${getBarColor(day.efficiency)}`}
-                    style={`height: ${(day.actual / maxChartValue) * 100}%`}
+                    style={`height: ${day.total > 0 ? (day.total / maxChartValue) * 100 : 0}%`}
                   ></div>
                 </div>
 
@@ -500,36 +585,36 @@
                     {day.short}
                   </p>
                   <p class="text-[10px] text-slate-400 font-mono mt-0.5">
-                    {day.actual} Lot
+                    {day.total}
                   </p>
                 </div>
               </div>
-            {/if}
-          {/each}
-        </div>
-
-        <div
+            {/each}
+          </div>
+  
+          <div
           class="mt-4 md:mt-4 flex flex-wrap justify-center md:justify-start gap-3 md:gap-4 text-xs text-slate-400 border-t border-slate-100 pt-4 md:pt-0 md:border-t-0"
         >
-          <span class="flex items-center gap-2"
+            <span class="flex items-center gap-2"
             ><span class="w-3 h-3 rounded-full bg-emerald-500 shadow-sm"></span>
             <span class="hidden sm:inline">&gt;100%</span><span
               class="sm:hidden">Optimal</span
             ></span
           >
-          <span class="flex items-center gap-2"
+            <span class="flex items-center gap-2"
             ><span class="w-3 h-3 rounded-full bg-amber-500 shadow-sm"></span>
             <span class="hidden sm:inline">&gt;80%</span><span class="sm:hidden"
               >Baik</span
             ></span
           >
-          <span class="flex items-center gap-2"
+            <span class="flex items-center gap-2"
             ><span class="w-3 h-3 rounded-full bg-rose-500 shadow-sm"></span>
             <span class="hidden sm:inline">&lt;80%</span><span class="sm:hidden"
               >Perlu Tuning</span
             ></span
           >
-        </div>
+          </div>
+        {/if}
       </div>
     </div>
 
