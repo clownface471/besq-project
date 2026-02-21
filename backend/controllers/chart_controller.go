@@ -13,7 +13,7 @@ func isDBConnected(c *gin.Context) bool {
 	if database.MySQL == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
 			"error": "Database Statistik (MySQL) tidak terhubung. Pastikan VPN aktif atau konfigurasi DB benar.",
-			"data":  []models.ChartSeries{}, 
+			"data":  []models.ChartSeries{},
 		})
 		return false
 	}
@@ -22,9 +22,11 @@ func isDBConnected(c *gin.Context) bool {
 
 // --- LEVEL 1: MANAGER VIEW (Overview Per Proses) ---
 func GetManagerOverview(c *gin.Context) {
-	if !isDBConnected(c) { return }
+	if !isDBConnected(c) {
+		return
+	}
 
-	tanggal := c.Query("tanggal") 
+	tanggal := c.Query("tanggal")
 	var results []models.ChartSeries
 
 	// Rumus: Target = (Durasi Jam) * (Target Qty/Jam)
@@ -35,7 +37,13 @@ func GetManagerOverview(c *gin.Context) {
 			COALESCE(SUM(t.Total), 0) AS actual,
 			COALESCE(SUM(t.NG), 0) AS actual_ng
 		FROM vtrx_lwp_prs t
-		LEFT JOIN v_stdlot s ON t.itemCode = s.itemCode COLLATE utf8mb4_unicode_ci
+		LEFT JOIN (
+    SELECT itemCode, moldCode, MAX(tgtQtyPJam) AS tgtQtyPJam 
+    FROM v_stdlot 
+    GROUP BY itemCode, moldCode
+) s 
+  ON t.itemCode = s.itemCode COLLATE utf8mb4_unicode_ci 
+  AND t.moldCode = s.moldCode COLLATE utf8mb4_unicode_ci
 		WHERE t.tanggal = ?
 		GROUP BY t.proses
 	`
@@ -50,10 +58,12 @@ func GetManagerOverview(c *gin.Context) {
 
 // --- LEVEL 2: LEADER VIEW (Overview Per Mesin) ---
 func GetLeaderProcessView(c *gin.Context) {
-	if !isDBConnected(c) { return }
+	if !isDBConnected(c) {
+		return
+	}
 
 	tanggal := c.Query("tanggal")
-	proses := c.Query("proses") 
+	proses := c.Query("proses")
 
 	var results []models.ChartSeries
 
@@ -65,7 +75,13 @@ func GetLeaderProcessView(c *gin.Context) {
 			COALESCE(SUM(t.Total), 0) AS actual,
 			COALESCE(SUM(t.NG), 0) AS actual_ng
 		FROM vtrx_lwp_prs t
-		LEFT JOIN v_stdlot s ON t.itemCode = s.itemCode COLLATE utf8mb4_unicode_ci
+		LEFT JOIN (
+			SELECT itemCode, moldCode, MAX(tgtQtyPJam) AS tgtQtyPJam 
+			FROM v_stdlot 
+			GROUP BY itemCode, moldCode
+		) s 
+		ON t.itemCode = s.itemCode COLLATE utf8mb4_unicode_ci 
+		AND t.moldCode = s.moldCode COLLATE utf8mb4_unicode_ci
 		WHERE t.tanggal = ? AND t.proses = ?
 		GROUP BY t.noMC
 		ORDER BY t.noMC
@@ -81,14 +97,16 @@ func GetLeaderProcessView(c *gin.Context) {
 
 // --- LEVEL 3: MACHINE DETAIL (Per Jam) WITH SHIFT FILTER ---
 func GetMachineDetail(c *gin.Context) {
-	if !isDBConnected(c) { return }
+	if !isDBConnected(c) {
+		return
+	}
 
 	tanggal := c.Query("tanggal")
 	noMC := c.Query("no_mc")
 	shift := c.Query("shift") // Get shift parameter
 
 	var results []models.ChartSeries
-	
+
 	// Define shift hour ranges
 	var startHour, endHour int
 	switch shift {
@@ -128,7 +146,13 @@ raw_data AS (
 
         t.Total, t.OK, t.NG
     FROM vtrx_lwp_prs t
-    LEFT JOIN v_stdlot s ON t.itemCode = s.itemCode COLLATE utf8mb4_unicode_ci
+    LEFT JOIN (
+    SELECT itemCode, moldCode, MAX(tgtQtyPJam) AS tgtQtyPJam 
+    FROM v_stdlot 
+    GROUP BY itemCode, moldCode
+) s 
+  ON t.itemCode = s.itemCode COLLATE utf8mb4_unicode_ci 
+  AND t.moldCode = s.moldCode COLLATE utf8mb4_unicode_ci
     CROSS JOIN jam_master j
     WHERE 
         t.tanggal = ? 
@@ -139,8 +163,8 @@ raw_data AS (
 SELECT 
     CONCAT(LPAD(jam_angka, 2, '0'), ':00') AS label,
     COALESCE(SUM((seconds_in_slot / 3600.0) * tgtQtyPJam), 0) AS target,
-    COALESCE(SUM(ROUND(Total * (seconds_in_slot / total_duration_sec))), 0) AS actual,
-    COALESCE(SUM(ROUND(NG * (seconds_in_slot / total_duration_sec))), 0) AS actual_ng,
+    COALESCE(SUM(ROUND(Total * (seconds_in_slot / total_duration_sec),2)), 0)+0 AS actual,
+    COALESCE(SUM(ROUND(NG * (seconds_in_slot / total_duration_sec),2)), 0)+0 AS actual_ng,
     
     -- UBAH: Sekarang mengambil itemCode, bukan itemName
     COALESCE(GROUP_CONCAT(DISTINCT raw_data.itemCode SEPARATOR ', '), '-') AS item_code,
