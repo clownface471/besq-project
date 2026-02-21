@@ -4,14 +4,10 @@
   import Chart from 'chart.js/auto';
   import annotationPlugin from 'chartjs-plugin-annotation';
   import { auth } from '$lib/stores/auth';
-  
-  // Import baru menggunakan html-to-image yang lebih tangguh dengan CSS modern
   import { toPng } from 'html-to-image';
 
-  // Registrasi plugin
   Chart.register(annotationPlugin);
 
-  // Ambil ID & Tanggal dari URL
   let urlMachineId = $page.url.searchParams.get('no_mc') || $page.url.searchParams.get('id') || '11A';
   let urlDate = $page.url.searchParams.get('date') || new Date().toISOString().split('T')[0];
 
@@ -19,7 +15,7 @@
   let filters = {
     tanggal: urlDate,
     mesin: urlMachineId,
-    shift: '1'
+    shift: '1' // 'all' akan ditambahkan nanti di HTML
   };
 
   let chartData: any[] = [];
@@ -28,21 +24,21 @@
   let canvasNG: HTMLCanvasElement;
   let chartTotal: Chart;
   let chartNG: Chart;
-
-  // State untuk export
   let exportContainer: HTMLElement;
   let isExporting = false;
 
-  // Shift labels for display
+  // Shift labels for display (tambah opsi 'all')
   const shiftLabels: Record<string, string> = {
     '1': 'Shift 1 (00:00 - 08:00)',
     '2': 'Shift 2 (08:00 - 16:00)',
-    '3': 'Shift 3 (16:00 - 00:00)'
+    '3': 'Shift 3 (16:00 - 00:00)',
+    'all': 'Satu Hari Penuh (24 Jam)' // <--- INI TAMBAHAN BARUNYA
   };
 
   async function loadChartData() {
     isLoading = true;
     try {
+      // API call tetap sama, nanti backend yang mengurus value 'shift=all'
       const res = await fetch(`/api/chart/machine?tanggal=${filters.tanggal}&no_mc=${filters.mesin}&shift=${filters.shift}`, {
           headers: { Authorization: `Bearer ${$auth.token}` }
       });
@@ -106,7 +102,7 @@
               ]
           },
           options: {
-              animation: false, // Penting agar render gambar instan
+              animation: false,
               responsive: true,
               maintainAspectRatio: false,
               plugins: {
@@ -205,7 +201,7 @@
               ]
           },
           options: {
-              animation: false, // Penting agar render gambar instan
+              animation: false,
               responsive: true,
               maintainAspectRatio: false,
               plugins: {
@@ -288,7 +284,8 @@
           });
           
           const link = document.createElement('a');
-          link.download = `Laporan_Produksi_Mesin_${filters.mesin}_Shift${filters.shift}_${filters.tanggal}.png`;
+          const safeShiftName = filters.shift === 'all' ? 'SatuHari' : `Shift${filters.shift}`;
+          link.download = `Laporan_Produksi_Mesin_${filters.mesin}_${safeShiftName}_${filters.tanggal}.png`;
           link.href = dataUrl;
           link.click();
       } catch (error) {
@@ -305,7 +302,7 @@
 </script>
 
 <div bind:this={exportContainer} class="p-6 max-w-7xl mx-auto space-y-6 bg-slate-50 min-h-screen">
-    <div class="flex justify-between items-center">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <h1 class="text-2xl font-bold text-slate-800">Laporan Produksi Per Jam</h1>
             <p class="text-sm text-slate-500 mt-1">Mesin {filters.mesin} - {shiftLabels[filters.shift]}</p>
@@ -354,7 +351,7 @@
                 <option value="1">Shift 1 (00:00 - 08:00)</option>
                 <option value="2">Shift 2 (08:00 - 16:00)</option>
                 <option value="3">Shift 3 (16:00 - 00:00)</option>
-            </select>
+                <option value="all" class="font-bold text-indigo-600">Satu Hari Penuh</option> </select>
         </div>
         <button 
             on:click={loadChartData} 
@@ -412,9 +409,9 @@
                         {@const achievement = row.target > 0 ? ((row.actual / row.target) * 100).toFixed(1) : 0}
                         <tr class="hover:bg-slate-50 transition-colors">
                             <td class="px-6 py-3 font-mono font-bold text-indigo-600">{row.label}</td>
-<td class="px-6 py-3 font-mono text-slate-700 font-medium max-w-xs truncate" title={row.item_code || '-'}>
-    {row.item_code || '-'}
-</td>
+                            <td class="px-6 py-3 font-mono text-slate-700 font-medium max-w-xs truncate" title={row.item_code || '-'}>
+                                {row.item_code || '-'}
+                            </td>
                             <td class="px-6 py-3 text-right font-medium text-slate-600">{Math.round(row.target || 0)}</td>
                             <td class="px-6 py-3 text-right font-bold text-slate-800">{row.actual}</td>
                             <td class="px-6 py-3 text-right font-bold text-rose-600">{row.actual_ng}</td>
